@@ -55,9 +55,8 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         self.set_inner_layers()
 
     def set_inner_layers(self):
-        """Define Self Attention/Transformer block layers.
-        """
-        
+        """Define Self Attention/Transformer block layers."""
+
         self.Attention = tf.keras.layers.MultiHeadAttention(
             num_heads=self.num_heads,
             key_dim=self.embed_dim,
@@ -89,8 +88,6 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
                     use_bias=True,
                     kernel_initializer=self.kernel_initializer,
                     bias_initializer=self.bias_initializer,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
                     kernel_regularizer=self.kernel_regularizer,
                     bias_regularizer=self.bias_regularizer,
                     kernel_constraint=self.kernel_constraint,
@@ -105,9 +102,7 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         self.Dropout1 = tf.keras.layers.Dropout(self.dropout)
         self.Dropout2 = tf.keras.layers.Dropout(self.dropout)
 
-    def call(
-        self, inputs: tf.Tensor, training: bool, mask: tf.Tensor
-    ) -> tf.Tensor:
+    def call(self, inputs: tf.Tensor, training: bool, mask: tf.Tensor) -> tf.Tensor:
         """[summary]
         Args:
             inputs (tf.Tensor): [description]
@@ -129,7 +124,6 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
 
     def get_config(self):
         return super().get_config()
-
 
 
 class IntersampleAttentionBlock(tf.keras.layers.Layer):
@@ -183,9 +177,8 @@ class IntersampleAttentionBlock(tf.keras.layers.Layer):
         self.set_inner_layers()
 
     def set_inner_layers(self):
-        """Define Intersample Attention block layers.
-        """
-        
+        """Define Intersample Attention block layers."""
+
         self.Attention = tf.keras.layers.MultiHeadAttention(
             num_heads=self.num_heads,
             key_dim=self.embed_dim,
@@ -217,8 +210,6 @@ class IntersampleAttentionBlock(tf.keras.layers.Layer):
                     use_bias=True,
                     kernel_initializer=self.kernel_initializer,
                     bias_initializer=self.bias_initializer,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
                     kernel_regularizer=self.kernel_regularizer,
                     bias_regularizer=self.bias_regularizer,
                     kernel_constraint=self.kernel_constraint,
@@ -233,9 +224,7 @@ class IntersampleAttentionBlock(tf.keras.layers.Layer):
         self.Dropout1 = tf.keras.layers.Dropout(self.dropout)
         self.Dropout2 = tf.keras.layers.Dropout(self.dropout)
 
-    def call(
-        self, inputs: tf.Tensor, training: bool, mask: tf.Tensor
-    ) -> tf.Tensor:
+    def call(self, inputs: tf.Tensor, training: bool, mask: tf.Tensor) -> tf.Tensor:
         """[summary]
         Args:
             inputs (tf.Tensor): [description]
@@ -244,7 +233,6 @@ class IntersampleAttentionBlock(tf.keras.layers.Layer):
         Returns:
             FloatTensorLike: [description]
         """
-
 
         attention_output = self.intersample_attention(
             inputs, training=training, attention_mask=mask
@@ -257,7 +245,9 @@ class IntersampleAttentionBlock(tf.keras.layers.Layer):
 
         return self.LayerNorm2(output1 + output2)
 
-    def intersample_attention(self, inputs: tf.Tensor, training: bool, mask: tf.Tensor) -> tf.Tensor:
+    def intersample_attention(
+        self, inputs: tf.Tensor, training: bool, mask: tf.Tensor
+    ) -> tf.Tensor:
         """[summary]
 
         Args:
@@ -276,25 +266,25 @@ class IntersampleAttentionBlock(tf.keras.layers.Layer):
         )
         output = tf.reshape(attention_output, (batch, n_samples, feature_dim))
         return output
-    
+
     def get_config(self):
         return super().get_config()
 
 
 def SAINTBlock(
-        embed_dim: int,
-        num_heads: int,
-        hidden_dim: int,
-        kernel_initializer: Union[str, Callable] = "glorot_uniform",
-        kernel_regularizer: Union[str, Callable] = None,
-        kernel_constraint: Union[str, Callable] = None,
-        bias_initializer: Union[str, Callable] = "zeros",
-        bias_regularizer: Union[str, Callable] = None,
-        bias_constraint: Union[str, Callable] = None,
-        dropout: float = 0.1,
-        epsilon: float = 1e-6,
-        **kwargs
-    ):
+    embed_dim: int,
+    num_heads: int,
+    hidden_dim: int,
+    kernel_initializer: Union[str, Callable] = "glorot_uniform",
+    kernel_regularizer: Union[str, Callable] = None,
+    kernel_constraint: Union[str, Callable] = None,
+    bias_initializer: Union[str, Callable] = "zeros",
+    bias_regularizer: Union[str, Callable] = None,
+    bias_constraint: Union[str, Callable] = None,
+    dropout: float = 0.1,
+    epsilon: float = 1e-6,
+    **kwargs
+):
     """[summary]
 
     Args:
@@ -315,31 +305,35 @@ def SAINTBlock(
         [type]: [description]
     """
 
-    return tf.keras.Sequential([
-        SelfAttentionBlock(
-            embed_dim,
-            num_heads,
-            hidden_dim,
-            kernel_initializer,
-            kernel_regularizer,
-            kernel_constraint,
-            bias_initializer,
-            bias_regularizer,
-            bias_constraint,
-            dropout,
-            epsilon,
-            **kwargs
-        ), 
-        IntersampleAttentionBlock(
-            embed_dim,
-            num_heads,
-            hidden_dim,
-            kernel_initializer,
-            kernel_regularizer,
-            kernel_constraint,
-            bias_initializer,
-            bias_regularizer,
-            bias_constraint,
-            dropout,
-            epsilon,
-            **kwargs)])
+    return tf.keras.Sequential(
+        [
+            SelfAttentionBlock(
+                embed_dim,
+                num_heads,
+                hidden_dim,
+                kernel_initializer,
+                kernel_regularizer,
+                kernel_constraint,
+                bias_initializer,
+                bias_regularizer,
+                bias_constraint,
+                dropout,
+                epsilon,
+                **kwargs
+            ),
+            IntersampleAttentionBlock(
+                embed_dim,
+                num_heads,
+                hidden_dim,
+                kernel_initializer,
+                kernel_regularizer,
+                kernel_constraint,
+                bias_initializer,
+                bias_regularizer,
+                bias_constraint,
+                dropout,
+                epsilon,
+                **kwargs
+            ),
+        ]
+    )
