@@ -5,6 +5,22 @@ import tensorflow as tf
 
 
 class SelfAttentionBlock(tf.keras.layers.Layer):
+    """[summary]
+
+    Args:
+        num_heads (int): [description]
+        embed_dim (int): [description]
+        hidden_dim (int): [description]
+        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        dropout (float, optional): [description]. Defaults to 0.1.
+        epsilon (float, optional): [description]. Defaults to 1e-6.
+    """
+
     def __init__(
         self,
         num_heads: int,
@@ -20,21 +36,6 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         epsilon: float = 1e-6,
         **kwargs
     ):
-        """[summary]
-
-        Args:
-            num_heads (int): [description]
-            embed_dim (int): [description]
-            hidden_dim (int): [description]
-            kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
-            kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-            kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-            bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
-            bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-            bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-            dropout (float, optional): [description]. Defaults to 0.1.
-            epsilon (float, optional): [description]. Defaults to 1e-6.
-        """
         super(SelfAttentionBlock, self).__init__(**kwargs)
 
         self.num_heads = num_heads
@@ -196,7 +197,17 @@ class IntersampleAttentionBlock(SelfAttentionBlock):
     """[summary]
 
     Args:
-        SelfAttentionBlock ([type]): [description]
+        num_heads (int): [description]
+        embed_dim (int): [description]
+        hidden_dim (int): [description]
+        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        dropout (float, optional): [description]. Defaults to 0.1.
+        epsilon (float, optional): [description]. Defaults to 1e-6.
     """
 
     def compute_attention(
@@ -237,12 +248,24 @@ def SAINTBlock(
     **kwargs
 ):
     """SAINT block composed of one Self Attention block followed by one Intersample
-    Attention one. For args description, see SelfAttentionBlock above.
+    Attention one.
+
+    Args:
+        num_heads (int): [description]
+        embed_dim (int): [description]
+        hidden_dim (int): [description]
+        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        dropout (float, optional): [description]. Defaults to 0.1.
+        epsilon (float, optional): [description]. Defaults to 1e-6.
 
     Returns:
         [type]: [description]
     """
-
     return tf.keras.Sequential(
         [
             SelfAttentionBlock(

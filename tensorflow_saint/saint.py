@@ -4,10 +4,32 @@ from typing import Dict, Iterable
 import tensorflow as tf
 
 from .layers import SAINTBlock
-from .augmentation import CutMix, Mixup
+from .augmentation import CutMixLayer, MixupLayer
 
 
 class SAINT(tf.keras.Model):
+    """[summary]
+
+    Args:
+        n_layers (int): [description]
+        categorical_variables (Dict[str, int]): [description]
+        numerical_variables (Iterable[str]): [description]
+        embed_dim (int): [description]
+        num_heads (int): [description]
+        hidden_dim (int): [description]
+        embeddings_initializer (str, optional): [description]. Defaults to "uniform".
+        embeddings_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        embeddings_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        dropout (float, optional): [description]. Defaults to 0.1.
+        epsilon (float, optional): [description]. Defaults to 1e-6.
+    """
+
     def __init__(
         self,
         n_layers: int,
@@ -29,27 +51,6 @@ class SAINT(tf.keras.Model):
         epsilon: float = 1e-6,
         **kwargs,
     ):
-        """[summary]
-
-        Args:
-            n_layers (int): [description]
-            categorical_variables (Dict[str, int]): [description]
-            numerical_variables (Iterable[str]): [description]
-            embed_dim (int): [description]
-            num_heads (int): [description]
-            hidden_dim (int): [description]
-            embeddings_initializer (str, optional): [description]. Defaults to "uniform".
-            embeddings_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-            embeddings_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-            kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
-            kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-            kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-            bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
-            bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-            bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-            dropout (float, optional): [description]. Defaults to 0.1.
-            epsilon (float, optional): [description]. Defaults to 1e-6.
-        """
         super(SAINT, self).__init__(**kwargs)
 
         self.n_layers = n_layers
@@ -131,9 +132,7 @@ class SAINT(tf.keras.Model):
                 ),
             )
 
-    def call(
-        self,
-    ):
+    def call(self, inputs: tf.Tensor, training: bool, pretraining: bool) -> tf.Tensor:
         raise NotImplementedError("Not yet implemented")
 
     def train_step(
