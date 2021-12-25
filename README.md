@@ -11,12 +11,12 @@ TensorFlow implementation of Transformers models for structured data, with a par
 ### SubTab
 **Sub**setting Features of **Tab**ular Data described in [SubTab: Subsetting Features of Tabular Data for Self-Supervised Representation Learning](https://arxiv.org/pdf/2110.04361.pdf).
 
-![Subsetting Features of Tabular Data](image/SAINT.png "Subsetting Features of Tabular Data")
+![Subsetting Features of Tabular Data](image/SubTab.png "Subsetting Features of Tabular Data")
 
 ### TFT
 **T**emporal **F**usion **T**ransformers described in [Temporal Fusion Transformers for interpretable multi-horizon time series forecasting](https://www.sciencedirect.com/science/article/pii/S0169207021000637).
 
-![Temporal Fusion Transformers](image/SAINT.png "Temporal Fusion Transformers")
+![Temporal Fusion Transformers](image/TFT.png "Temporal Fusion Transformers")
 
 
 ## License
