@@ -133,30 +133,15 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
             bias_constraint=self.bias_constraint,
         )
 
-        self.feed_forward_network = tf.keras.Sequential(
-            [
-                tf.keras.layers.Dense(
-                    self.hidden_dim,
-                    activation="relu",
-                    use_bias=True,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
-                ),
-                tf.keras.layers.Dense(
-                    self.embed_dim,
-                    use_bias=True,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
-                ),
-            ]
+        self.feed_forward_network = MLP(
+            hidden_dim=self.hidden_dim,
+            output_dim=self.embed_dim,
+            kernel_initializer=self.kernel_initializer,
+            bias_initializer=self.bias_initializer,
+            kernel_regularizer=self.kernel_regularizer,
+            bias_regularizer=self.bias_regularizer,
+            kernel_constraint=self.kernel_constraint,
+            bias_constraint=self.bias_constraint,
         )
 
         self.layer_norm1 = tf.keras.layers.LayerNormalization(self.epsilon)

@@ -80,6 +80,7 @@ class SAINT(tf.keras.Model):
         self.set_inner_layers()
 
     def set_inner_layers(self):
+        """Define SAINT layers."""
 
         # SAINT Transformer Encoder layers
         self.encoder = tf.keras.Sequential(
