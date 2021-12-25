@@ -1,9 +1,9 @@
 """Self-Attention and Intersample Attention Transformer (SAINT) with TensorFlow"""
 
-from typing import Dict, Iterable
+from typing import Callable, Dict, Iterable, Union
 import tensorflow as tf
 
-from .layers import SAINTBlock
+from .layers import MLP, SAINTBlock
 from .augmentation import CutMixLayer, MixupLayer
 
 
@@ -79,8 +79,9 @@ class SAINT(tf.keras.Model):
 
         self.set_inner_layers()
 
-    def set_inner_layers():
+    def set_inner_layers(self):
 
+        # SAINT Transformer Encoder layers
         self.encoder = tf.keras.Sequential(
             [
                 SAINTBlock(
@@ -101,6 +102,7 @@ class SAINT(tf.keras.Model):
             ]
         )
 
+        # Embedding and denoising MLPs for categorical variables
         for var_name, var_dimension in self.categorical_variables.items():
             setattr(
                 self,
@@ -114,7 +116,24 @@ class SAINT(tf.keras.Model):
                     name=f"{var_name}_embedding",
                 ),
             )
+            setattr(
+                self,
+                f"{var_name}_denoising",
+                MLP(
+                    hidden_dim=self.embed_dim,
+                    output_dim=self.embed_dim,
+                    output_activation=tf.nn.softmax,
+                    kernel_initializer=self.kernel_initializer,
+                    bias_initializer=self.bias_initializer,
+                    kernel_regularizer=self.kernel_regularizer,
+                    bias_regularizer=self.bias_regularizer,
+                    kernel_constraint=self.kernel_constraint,
+                    bias_constraint=self.bias_constraint,
+                    name=f"{var_name}_dense",
+                ),
+            )
 
+        # Embedding and denoising MLP for numerical variables
         for var_name in self.numerical_variables:
             setattr(
                 self,
@@ -131,16 +150,56 @@ class SAINT(tf.keras.Model):
                     name=f"{var_name}_dense",
                 ),
             )
+            setattr(
+                self,
+                f"{var_name}_denoising",
+                MLP(
+                    hidden_dim=self.embed_dim,
+                    output_dim=self.embed_dim,
+                    kernel_initializer=self.kernel_initializer,
+                    bias_initializer=self.bias_initializer,
+                    kernel_regularizer=self.kernel_regularizer,
+                    bias_regularizer=self.bias_regularizer,
+                    kernel_constraint=self.kernel_constraint,
+                    bias_constraint=self.bias_constraint,
+                    name=f"{var_name}_dense",
+                ),
+            )
 
-    def call(self, inputs: tf.Tensor, training: bool, pretraining: bool) -> tf.Tensor:
+        # Projection head for input
+        self.projection_head1 = MLP(
+            hidden_dim=self.embed_dim,
+            output_dim=self.embed_dim,
+            kernel_initializer=self.kernel_initializer,
+            bias_initializer=self.bias_initializer,
+            kernel_regularizer=self.kernel_regularizer,
+            bias_regularizer=self.bias_regularizer,
+            kernel_constraint=self.kernel_constraint,
+            bias_constraint=self.bias_constraint,
+            name=f"projection_head1",
+        )
+
+        # Projection head for augmented input
+        self.projection_head2 = MLP(
+            hidden_dim=self.embed_dim,
+            output_dim=self.embed_dim,
+            kernel_initializer=self.kernel_initializer,
+            bias_initializer=self.bias_initializer,
+            kernel_regularizer=self.kernel_regularizer,
+            bias_regularizer=self.bias_regularizer,
+            kernel_constraint=self.kernel_constraint,
+            bias_constraint=self.bias_constraint,
+            name=f"projection_head2",
+        )
+
+    def compile(self):
         raise NotImplementedError("Not yet implemented")
 
-    def train_step(
-        self,
-    ):
+    def call(self, inputs: tf.Tensor, training: bool) -> tf.Tensor:
         raise NotImplementedError("Not yet implemented")
 
-    def get_config(
-        self,
-    ):
+    def train_step(self):
+        raise NotImplementedError("Not yet implemented")
+
+    def get_config(self):
         raise NotImplementedError("Not yet implemented")

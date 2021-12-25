@@ -4,6 +4,68 @@ from typing import Callable, Dict, Union
 import tensorflow as tf
 
 
+def MLP(
+    hidden_dim: int,
+    output_dim: int,
+    output_activation: Union[str, Callable] = None,
+    kernel_initializer: Union[str, Callable] = "glorot_uniform",
+    bias_initializer: Union[str, Callable] = "zeros",
+    kernel_regularizer: Union[str, Callable] = None,
+    bias_regularizer: Union[str, Callable] = None,
+    activity_regularizer: Union[str, Callable] = None,
+    kernel_constraint: Union[str, Callable] = None,
+    bias_constraint: Union[str, Callable] = None,
+    **kwargs,
+):
+    """[summary]
+
+    Args:
+        hidden_dim (int): [description]
+        output_dim (int): [description]
+        output_activation (Union[str, Callable]): [description]
+        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
+        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        activity_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+
+    Returns:
+        [type]: [description]
+    """
+    return tf.keras.Sequential(
+        [
+            tf.keras.layers.Dense(
+                units=hidden_dim,
+                activation="relu",
+                use_bias=True,
+                kernel_initializer=kernel_initializer,
+                bias_initializer=bias_initializer,
+                kernel_regularizer=kernel_regularizer,
+                bias_regularizer=bias_regularizer,
+                activity_regularizer=activity_regularizer,
+                kernel_constraint=kernel_constraint,
+                bias_constraint=bias_constraint,
+                **kwargs,
+            ),
+            tf.keras.layers.Dense(
+                units=output_dim,
+                activation=output_activation,
+                use_bias=True,
+                kernel_initializer=kernel_initializer,
+                bias_initializer=bias_initializer,
+                kernel_regularizer=kernel_regularizer,
+                bias_regularizer=bias_regularizer,
+                activity_regularizer=activity_regularizer,
+                kernel_constraint=kernel_constraint,
+                bias_constraint=bias_constraint,
+                **kwargs,
+            ),
+        ]
+    )
+
+
 class SelfAttentionBlock(tf.keras.layers.Layer):
     """[summary]
 
@@ -34,7 +96,7 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         bias_constraint: Union[str, Callable] = None,
         dropout: float = 0.1,
         epsilon: float = 1e-6,
-        **kwargs
+        **kwargs,
     ):
         super(SelfAttentionBlock, self).__init__(**kwargs)
 
@@ -227,7 +289,10 @@ class IntersampleAttentionBlock(SelfAttentionBlock):
         reshaped_inputs = tf.reshape(inputs, (1, batch, n_samples * feature_dim))
 
         attention_output = self.attention_layer(
-            reshaped_inputs, reshaped_inputs, training=training, attention_mask=mask
+            reshaped_inputs,
+            reshaped_inputs,
+            training=training,
+            attention_mask=attention_mask,
         )
         output = tf.reshape(attention_output, (batch, n_samples, feature_dim))
         return output
@@ -245,7 +310,7 @@ def SAINTBlock(
     bias_constraint: Union[str, Callable] = None,
     dropout: float = 0.1,
     epsilon: float = 1e-6,
-    **kwargs
+    **kwargs,
 ):
     """SAINT block composed of one Self Attention block followed by one Intersample
     Attention one.
@@ -280,7 +345,7 @@ def SAINTBlock(
                 bias_constraint,
                 dropout,
                 epsilon,
-                **kwargs
+                **kwargs,
             ),
             IntersampleAttentionBlock(
                 embed_dim,
@@ -294,7 +359,7 @@ def SAINTBlock(
                 bias_constraint,
                 dropout,
                 epsilon,
-                **kwargs
+                **kwargs,
             ),
         ]
     )
