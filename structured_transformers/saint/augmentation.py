@@ -3,15 +3,16 @@
 import tensorflow as tf
 
 
-class CutMixLayer(tf.keras.layers.Layer):
-    def __init__(self, probability: float, seed: int, **kwargs):
-        """[summary]
+class CutMix(tf.keras.layers.Layer):
+    """[summary]
 
-        Args:
-            probability (float): [description]
-            seed (int): [description]
-        """
-        super(CutMixLayer, self).__init__(**kwargs)
+    Args:
+        probability (float): [description]
+        seed (int, optional): [description]. Defaults to None.
+    """
+
+    def __init__(self, probability: float, seed: int = None, **kwargs):
+        super(CutMix, self).__init__(**kwargs)
 
         self.probability = probability
         self.seed = seed
@@ -20,7 +21,7 @@ class CutMixLayer(tf.keras.layers.Layer):
         raise NotImplementedError("Not yet implemented")
 
     def get_config(self) -> dict:
-        base_config = super(CutMixLayer, self).get_config()
+        base_config = super(CutMix, self).get_config()
         config = {
             "probability": self.probability,
             "seed": self.seed,
@@ -28,7 +29,7 @@ class CutMixLayer(tf.keras.layers.Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class MixupLayer(tf.keras.layers.Layer):
+class Mixup(tf.keras.layers.Layer):
     """[summary]
 
     Args:
@@ -36,7 +37,7 @@ class MixupLayer(tf.keras.layers.Layer):
     """
 
     def __init__(self, alpha: float, **kwargs):
-        super(MixupLayer, self).__init__(**kwargs)
+        super(Mixup, self).__init__(**kwargs)
 
         self.alpha = alpha
 
@@ -44,7 +45,7 @@ class MixupLayer(tf.keras.layers.Layer):
         raise NotImplementedError("Not yet implemented")
 
     def get_config(self) -> dict:
-        base_config = super(MixupLayer, self).get_config()
+        base_config = super(Mixup, self).get_config()
         config = {
             "alpha": self.alpha,
         }

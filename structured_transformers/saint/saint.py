@@ -4,7 +4,7 @@ from typing import Callable, Dict, Iterable, Union
 import tensorflow as tf
 
 from .layers import MLP, SAINTBlock
-from .augmentation import CutMixLayer, MixupLayer
+from .augmentation import CutMix, Mixup
 
 
 class SAINT(tf.keras.Model):
@@ -26,9 +26,9 @@ class SAINT(tf.keras.Model):
         bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
         bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
         bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-        probability (float, optional): [description]. Defaults to 0.5.
+        cutmix_probability (float, optional): [description]. Defaults to 0.5.
         seed (int, optional): [description]. Defaults to 26.
-        alpha (float, optional): [description]. Defaults to 0.5.
+        mixup_alpha (float, optional): [description]. Defaults to 0.5.
         dropout (float, optional): [description]. Defaults to 0.1.
         epsilon (float, optional): [description]. Defaults to 1e-6.
     """
@@ -50,9 +50,9 @@ class SAINT(tf.keras.Model):
         bias_initializer: Union[str, Callable] = "zeros",
         bias_regularizer: Union[str, Callable] = None,
         bias_constraint: Union[str, Callable] = None,
-        probability: float = 0.5,
+        cutmix_probability: float = 0.5,
         seed: int = 26,
-        alpha: float = 0.5,
+        mixup_alpha: float = 0.5,
         dropout: float = 0.1,
         epsilon: float = 1e-6,
         **kwargs,
@@ -80,12 +80,14 @@ class SAINT(tf.keras.Model):
         self.bias_regularizer = bias_regularizer
         self.bias_constraint = bias_constraint
 
-        self.probability = probability
+        self.cutmix_probability = cutmix_probability
         self.seed = seed
-        self.alpha = alpha
+        self.mixup_alpha = mixup_alpha
 
         self.dropout = dropout
         self.epsilon = epsilon
+
+        self.pretraining_ = None
 
         self.set_inner_layers()
 
@@ -93,8 +95,8 @@ class SAINT(tf.keras.Model):
         """Define SAINT layers."""
 
         # Data Augmentation layers
-        self.cutmix_layer = CutMixLayer(probability=self.probability, seed=self.seed)
-        self.mixup_layer = MixupLayer(alpha=self.alpha)
+        self.cutmix_layer = CutMix(probability=self.probability, seed=self.seed)
+        self.mixup_layer = Mixup(alpha=self.alpha)
 
         # SAINT Transformer Encoder layers
         self.encoder = tf.keras.Sequential(
