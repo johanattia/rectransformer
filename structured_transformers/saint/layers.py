@@ -74,10 +74,10 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         embed_dim (int): [description]
         hidden_dim (int): [description]
         kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
-        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
         bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         dropout (float, optional): [description]. Defaults to 0.1.
         epsilon (float, optional): [description]. Defaults to 1e-6.
@@ -89,10 +89,10 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         embed_dim: int,
         hidden_dim: int,
         kernel_initializer: Union[str, Callable] = "glorot_uniform",
-        kernel_regularizer: Union[str, Callable] = None,
-        kernel_constraint: Union[str, Callable] = None,
         bias_initializer: Union[str, Callable] = "zeros",
+        kernel_regularizer: Union[str, Callable] = None,
         bias_regularizer: Union[str, Callable] = None,
+        kernel_constraint: Union[str, Callable] = None,
         bias_constraint: Union[str, Callable] = None,
         dropout: float = 0.1,
         epsilon: float = 1e-6,
@@ -144,11 +144,11 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
             bias_constraint=self.bias_constraint,
         )
 
-        self.layer_norm1 = tf.keras.layers.LayerNormalization(self.epsilon)
-        self.layer_norm2 = tf.keras.layers.LayerNormalization(self.epsilon)
+        self.layer_norm1 = tf.keras.layers.LayerNormalization(epsilon=self.epsilon)
+        self.layer_norm2 = tf.keras.layers.LayerNormalization(epsilon=self.epsilon)
 
-        self.dropout1 = tf.keras.layers.Dropout(self.dropout)
-        self.dropout2 = tf.keras.layers.Dropout(self.dropout)
+        self.dropout1 = tf.keras.layers.Dropout(rate=self.dropout)
+        self.dropout2 = tf.keras.layers.Dropout(rate=self.dropout)
 
     def call(self, inputs: tf.Tensor, training: bool, mask: tf.Tensor) -> tf.Tensor:
         """[summary]
@@ -189,23 +189,20 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         Returns:
             [type]: [description]
         """
-        # Kernel deserialization
         config["kernel_initializer"] = tf.keras.initializers.deserialize(
             config["kernel_initializer"]
+        )
+        config["bias_initializer"] = tf.keras.initializers.deserialize(
+            config["bias_initializer"]
         )
         config["kernel_regularizer"] = tf.keras.regularizers.deserialize(
             config["kernel_regularizer"]
         )
-        config["kernel_constraint"] = tf.keras.constraints.deserialize(
-            config["kernel_constraint"]
-        )
-
-        # Bias deserialization
-        config["bias_initializer"] = tf.keras.initializers.deserialize(
-            config["bias_initializer"]
-        )
         config["bias_regularizer"] = tf.keras.regularizers.deserialize(
             config["bias_regularizer"]
+        )
+        config["kernel_constraint"] = tf.keras.constraints.deserialize(
+            config["kernel_constraint"]
         )
         config["bias_constraint"] = tf.keras.constraints.deserialize(
             config["bias_constraint"]
@@ -221,15 +218,15 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
             "kernel_initializer": tf.keras.initializers.serialize(
                 self.kernel_initializer
             ),
+            "bias_initializer": tf.keras.initializers.serialize(self.bias_initializer),
             "kernel_regularizer": self.tf.keras.regularizers.serialize(
                 self.kernel_regularizer
             ),
-            "kernel_constraint": self.tf.keras.constraints.serialize(
-                self.kernel_constraint
-            ),
-            "bias_initializer": tf.keras.initializers.serialize(self.bias_initializer),
             "bias_regularizer": self.tf.keras.regularizers.serialize(
                 self.bias_regularizer
+            ),
+            "kernel_constraint": self.tf.keras.constraints.serialize(
+                self.kernel_constraint
             ),
             "bias_constraint": self.tf.keras.constraints.serialize(
                 self.bias_constraint
@@ -248,10 +245,10 @@ class IntersampleAttentionBlock(SelfAttentionBlock):
         embed_dim (int): [description]
         hidden_dim (int): [description]
         kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
-        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
         bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         dropout (float, optional): [description]. Defaults to 0.1.
         epsilon (float, optional): [description]. Defaults to 1e-6.
@@ -288,27 +285,26 @@ def SAINTBlock(
     num_heads: int,
     hidden_dim: int,
     kernel_initializer: Union[str, Callable] = "glorot_uniform",
-    kernel_regularizer: Union[str, Callable] = None,
-    kernel_constraint: Union[str, Callable] = None,
     bias_initializer: Union[str, Callable] = "zeros",
+    kernel_regularizer: Union[str, Callable] = None,
     bias_regularizer: Union[str, Callable] = None,
+    kernel_constraint: Union[str, Callable] = None,
     bias_constraint: Union[str, Callable] = None,
     dropout: float = 0.1,
     epsilon: float = 1e-6,
     **kwargs,
 ):
-    """SAINT block composed of one Self Attention block followed by one Intersample
-    Attention one.
+    """[summary]
 
     Args:
-        num_heads (int): [description]
         embed_dim (int): [description]
+        num_heads (int): [description]
         hidden_dim (int): [description]
         kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
-        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
         bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
         dropout (float, optional): [description]. Defaults to 0.1.
         epsilon (float, optional): [description]. Defaults to 1e-6.
@@ -319,31 +315,31 @@ def SAINTBlock(
     return tf.keras.Sequential(
         [
             SelfAttentionBlock(
-                embed_dim,
-                num_heads,
-                hidden_dim,
-                kernel_initializer,
-                kernel_regularizer,
-                kernel_constraint,
-                bias_initializer,
-                bias_regularizer,
-                bias_constraint,
-                dropout,
-                epsilon,
+                embed_dim=embed_dim,
+                num_heads=num_heads,
+                hidden_dim=hidden_dim,
+                kernel_initializer=kernel_initializer,
+                bias_initializer=bias_initializer,
+                kernel_regularizer=kernel_regularizer,
+                bias_regularizer=bias_regularizer,
+                kernel_constraint=kernel_constraint,
+                bias_constraint=bias_constraint,
+                dropout=dropout,
+                epsilon=epsilon,
                 **kwargs,
             ),
             IntersampleAttentionBlock(
-                embed_dim,
-                num_heads,
-                hidden_dim,
-                kernel_initializer,
-                kernel_regularizer,
-                kernel_constraint,
-                bias_initializer,
-                bias_regularizer,
-                bias_constraint,
-                dropout,
-                epsilon,
+                embed_dim=embed_dim,
+                num_heads=num_heads,
+                hidden_dim=hidden_dim,
+                kernel_initializer=kernel_initializer,
+                bias_initializer=bias_initializer,
+                kernel_regularizer=kernel_regularizer,
+                bias_regularizer=bias_regularizer,
+                kernel_constraint=kernel_constraint,
+                bias_constraint=bias_constraint,
+                dropout=dropout,
+                epsilon=epsilon,
                 **kwargs,
             ),
         ]

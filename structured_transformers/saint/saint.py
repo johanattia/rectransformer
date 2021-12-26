@@ -26,6 +26,9 @@ class SAINT(tf.keras.Model):
         bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
         bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
         bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        probability (float, optional): [description]. Defaults to 0.5.
+        seed (int, optional): [description]. Defaults to 26.
+        alpha (float, optional): [description]. Defaults to 0.5.
         dropout (float, optional): [description]. Defaults to 0.1.
         epsilon (float, optional): [description]. Defaults to 1e-6.
     """
@@ -47,6 +50,9 @@ class SAINT(tf.keras.Model):
         bias_initializer: Union[str, Callable] = "zeros",
         bias_regularizer: Union[str, Callable] = None,
         bias_constraint: Union[str, Callable] = None,
+        probability: float = 0.5,
+        seed: int = 26,
+        alpha: float = 0.5,
         dropout: float = 0.1,
         epsilon: float = 1e-6,
         **kwargs,
@@ -74,29 +80,37 @@ class SAINT(tf.keras.Model):
         self.bias_regularizer = bias_regularizer
         self.bias_constraint = bias_constraint
 
-        self.epsilon = epsilon
+        self.probability = probability
+        self.seed = seed
+        self.alpha = alpha
+
         self.dropout = dropout
+        self.epsilon = epsilon
 
         self.set_inner_layers()
 
     def set_inner_layers(self):
         """Define SAINT layers."""
 
+        # Data Augmentation layers
+        self.cutmix_layer = CutMixLayer(probability=self.probability, seed=self.seed)
+        self.mixup_layer = MixupLayer(alpha=self.alpha)
+
         # SAINT Transformer Encoder layers
         self.encoder = tf.keras.Sequential(
             [
                 SAINTBlock(
-                    self.embed_dim,
-                    self.num_heads,
-                    self.hidden_dim,
-                    self.kernel_initializer,
-                    self.kernel_regularizer,
-                    self.kernel_constraint,
-                    self.bias_initializer,
-                    self.bias_regularizer,
-                    self.bias_constraint,
-                    self.dropout,
-                    self.epsilon,
+                    embed_dim=self.embed_dim,
+                    num_heads=self.num_heads,
+                    hidden_dim=self.hidden_dim,
+                    kernel_initializer=self.kernel_initializer,
+                    bias_initializer=self.bias_initializer,
+                    kernel_regularizer=self.kernel_regularizer,
+                    bias_regularizer=self.bias_regularizer,
+                    kernel_constraint=self.kernel_constraint,
+                    bias_constraint=self.bias_constraint,
+                    dropout=self.dropout,
+                    epsilon=self.epsilon,
                     name=f"SAINT_layer_{i}",
                 )
                 for i in range(self.n_layers)
@@ -109,11 +123,11 @@ class SAINT(tf.keras.Model):
                 self,
                 f"{var_name}_embedding",
                 tf.keras.layers.Embedding(
-                    var_dimension,
-                    self.embed_dim,
-                    self.embeddings_initializer,
-                    self.embeddings_regularizer,
-                    self.embeddings_constraint,
+                    input_dim=var_dimension,
+                    output_dim=self.embed_dim,
+                    embeddings_initializer=self.embeddings_initializer,
+                    embeddings_regularizer=self.embeddings_regularizer,
+                    embeddings_constraint=self.embeddings_constraint,
                     name=f"{var_name}_embedding",
                 ),
             )
