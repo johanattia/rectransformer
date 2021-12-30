@@ -3,6 +3,8 @@
 from typing import Callable, Union
 import tensorflow as tf
 
+# TODO: add input_shape/input_dim/input_layer, hidden_activation (relu or gelu) in MLP and SAINTBlock
+
 
 def MLP(
     hidden_dim: int,
