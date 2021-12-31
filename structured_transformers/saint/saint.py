@@ -138,6 +138,7 @@ class SAINT(tf.keras.Model):
         )
 
         for feature in self.input_schema.ordered_features:
+
             if feature.field_type is schema.FieldType.CATEGORICAL:
                 setattr(
                     self,
@@ -168,6 +169,7 @@ class SAINT(tf.keras.Model):
                         name=f"{feature.name}_denoising",
                     ),
                 )
+
             else:
                 setattr(
                     self,
