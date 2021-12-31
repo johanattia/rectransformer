@@ -21,7 +21,7 @@ class FieldType(Enum):
 class FeatureSchema(BaseModel):
     name: str
     feature_type: FeatureType
-    feature_dimension: int  # 1 if FeatureType.NUMERICAL`, N if FeatureType.CATEGORICAL`
+    feature_dimension: int  # 1 if FeatureType.NUMERICAL, N if FeatureType.CATEGORICAL
     field_type: Optional[FieldType]
     description: Optional[str]
     minimum: Optional[Union[int, float]]
