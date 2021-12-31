@@ -139,7 +139,7 @@ class SAINT(tf.keras.Model):
 
         for feature in self.input_schema.ordered_features:
 
-            if feature.field_type is schema.FieldType.CATEGORICAL:
+            if feature.feature_type is schema.FeatureType.CATEGORICAL:
                 setattr(
                     self,
                     f"{feature.name}_embedding",
