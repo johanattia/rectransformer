@@ -8,7 +8,7 @@ import tensorflow as tf
 
 class FeatureSchema(BaseModel):
     name: str
-    feature_type: str  # `NUMERICAL` or `CATEGORICAL`
+    feature_type: str
     feature_dimension: int  # 1 if `NUMERICAL`, N if `CATEGORICAL`
     field_type: Optional[Union[tf.io.FixedLenFeature, tf.dtypes.DType]] = None
     description: Optional[str] = None
@@ -16,7 +16,7 @@ class FeatureSchema(BaseModel):
     maximum: Optional[Union[int, float]] = None
 
     @validator("feature_type")
-    def feature_type_match(cls, value: str):
+    def feature_type_match(cls, value):
         if isinstance(value, str) and (
             value.upper() not in ["NUMERICAL", "CATEGORICAL"]
         ):
