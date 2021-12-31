@@ -3,6 +3,7 @@
 from typing import Callable, Dict, Iterable, Union
 import tensorflow as tf
 
+import schema
 from .layers import MLP, SAINTBlock
 from .augmentation import CutMix, Mixup
 
@@ -11,8 +12,7 @@ class SAINT(tf.keras.Model):
     """[summary]
 
     Args:
-        categorical_features (Dict[str, int]): [description]
-        numerical_features (Iterable[str]): [description]
+        input_schema (schema.InputFeaturesSchema): [description]
         n_layers (int): [description]
         embed_dim (int): [description]
         num_heads (int): [description]
@@ -36,8 +36,7 @@ class SAINT(tf.keras.Model):
 
     def __init__(
         self,
-        categorical_features: Dict[str, int],
-        numerical_features: Iterable[str],
+        input_schema: schema.InputFeaturesSchema,
         n_layers: int,
         embed_dim: int,
         num_heads: int,
@@ -62,8 +61,7 @@ class SAINT(tf.keras.Model):
         super(SAINT, self).__init__(**kwargs)
 
         # Input schema
-        self.categorical_features = categorical_features
-        self.numerical_features = numerical_features
+        self.input_schema = input_schema
 
         # Transformer Encoder hyperparameters
         self.n_layers = n_layers
@@ -100,8 +98,10 @@ class SAINT(tf.keras.Model):
         self.set_inner_layers()
 
     def build(self):
-        self.CLS_VECTOR = self.add_weight(
-            name="CLS_VECTOR",
+        """Build CLS embedding, used for supervised downstream tasks."""
+
+        self._CLS = self.add_weight(
+            name="CLS",
             shape=(self.embed_dim,),
             initializer=self.embeddings_initializer,
             regularizer=self.embeddings_regularizer,
@@ -137,72 +137,72 @@ class SAINT(tf.keras.Model):
             ]
         )
 
-        # Embedding and denoising MLPs for categorical variables
-        for var_name, var_dimension in self.categorical_features.items():
-            setattr(
-                self,
-                f"{var_name}_embedding",
-                tf.keras.layers.Embedding(
-                    input_dim=var_dimension,
-                    output_dim=self.embed_dim,
-                    embeddings_initializer=self.embeddings_initializer,
-                    embeddings_regularizer=self.embeddings_regularizer,
-                    embeddings_constraint=self.embeddings_constraint,
-                    name=f"{var_name}_embedding",
-                ),
-            )
-            setattr(
-                self,
-                f"{var_name}_denoising",
-                MLP(
-                    hidden_dim=self.embed_dim,
-                    output_dim=self.embed_dim,
-                    output_activation=tf.nn.softmax,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    activity_regularizer=self.activity_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
-                    name=f"{var_name}_dense",
-                ),
-            )
-
-        # Embedding and denoising MLP for numerical variables
-        for var_name in self.numerical_features:
-            setattr(
-                self,
-                f"{var_name}_dense",
-                tf.keras.layers.Dense(
-                    self.embed_dim,
-                    use_bias=True,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    activity_regularizer=self.activity_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
-                    name=f"{var_name}_dense",
-                ),
-            )
-            setattr(
-                self,
-                f"{var_name}_denoising",
-                MLP(
-                    hidden_dim=self.embed_dim,
-                    output_dim=self.embed_dim,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    activity_regularizer=self.activity_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
-                    name=f"{var_name}_dense",
-                ),
-            )
+        for feature in self.input_schema.ordered_features:
+            if feature.field_type is schema.FieldType.CATEGORICAL:
+                setattr(
+                    self,
+                    f"{feature.name}_embedding",
+                    tf.keras.layers.Embedding(
+                        input_dim=feature.feature_dimension,
+                        output_dim=self.embed_dim,
+                        embeddings_initializer=self.embeddings_initializer,
+                        embeddings_regularizer=self.embeddings_regularizer,
+                        embeddings_constraint=self.embeddings_constraint,
+                        name=f"{feature.name}_embedding",
+                    ),
+                )
+                setattr(
+                    self,
+                    f"{feature.name}_denoising",
+                    MLP(
+                        hidden_dim=self.embed_dim,
+                        output_dim=feature.feature_dimension,
+                        output_activation=tf.nn.softmax,
+                        kernel_initializer=self.kernel_initializer,
+                        bias_initializer=self.bias_initializer,
+                        kernel_regularizer=self.kernel_regularizer,
+                        bias_regularizer=self.bias_regularizer,
+                        activity_regularizer=self.activity_regularizer,
+                        kernel_constraint=self.kernel_constraint,
+                        bias_constraint=self.bias_constraint,
+                        name=f"{feature.name}_denoising",
+                    ),
+                )
+            else:
+                setattr(
+                    self,
+                    f"{feature.name}_dense",
+                    tf.keras.layers.Dense(
+                        self.embed_dim,
+                        use_bias=True,
+                        activation=tf.nn.relu,
+                        kernel_initializer=self.kernel_initializer,
+                        bias_initializer=self.bias_initializer,
+                        kernel_regularizer=self.kernel_regularizer,
+                        bias_regularizer=self.bias_regularizer,
+                        activity_regularizer=self.activity_regularizer,
+                        kernel_constraint=self.kernel_constraint,
+                        bias_constraint=self.bias_constraint,
+                        name=f"{feature.name}_dense",
+                    ),
+                )
+                setattr(
+                    self,
+                    f"{feature.name}_denoising",
+                    MLP(
+                        hidden_dim=self.embed_dim,
+                        output_dim=feature.feature_dimension,
+                        output_activation=None,
+                        kernel_initializer=self.kernel_initializer,
+                        bias_initializer=self.bias_initializer,
+                        kernel_regularizer=self.kernel_regularizer,
+                        bias_regularizer=self.bias_regularizer,
+                        activity_regularizer=self.activity_regularizer,
+                        kernel_constraint=self.kernel_constraint,
+                        bias_constraint=self.bias_constraint,
+                        name=f"{feature.name}_denoising",
+                    ),
+                )
 
         # Projection head for input
         self.projection_head1 = MLP(
@@ -245,7 +245,6 @@ class SAINT(tf.keras.Model):
         **kwargs,
     ):
         self._pretraining = pretraining
-
         super(SAINT, self).compile(
             optimizer=optimizer,
             loss=loss,

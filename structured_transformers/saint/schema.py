@@ -1,27 +1,33 @@
 """Features schema for structured/tabular models."""
 
-from typing import Optional, OrderedDict, Union
-from pydantic import BaseModel, validator
+from enum import Enum
+from typing import List, Optional, Union
+from pydantic import BaseModel
 
 import tensorflow as tf
 
 
+class FeatureType(Enum):
+    NUMERICAL = "NUMERICAL"
+    CATEGORICAL = "CATEGORICAL"
+
+
+class FieldType(Enum):
+    INT = "INT"
+    FLOAT = "FLOAT"
+    STRING = "STRING"
+
+
 class FeatureSchema(BaseModel):
     name: str
-    feature_type: str
-    feature_dimension: int  # 1 if `NUMERICAL`, N if `CATEGORICAL`
-    field_type: Optional[tf.io.FixedLenFeature] = None
-    description: Optional[str] = None
-    minimum: Optional[Union[int, float]] = None
-    maximum: Optional[Union[int, float]] = None
-
-    @validator("feature_type")
-    def feature_type_match(cls, value):
-        if value.upper() not in ["NUMERICAL", "CATEGORICAL"]:
-            raise ValueError("`feature_type` must be in [`NUMERICAL`, `CATEGORICAL`]")
-        return value.upper()
+    feature_type: FeatureType
+    feature_dimension: int  # 1 if FeatureType.NUMERICAL`, N if FeatureType.CATEGORICAL`
+    field_type: Optional[FieldType]
+    description: Optional[str]
+    minimum: Optional[Union[int, float]]
+    maximum: Optional[Union[int, float]]
 
 
-class FeaturesMapping(BaseModel):
+class InputFeaturesSchema(BaseModel):
     name: str
-    mapping: OrderedDict[str, FeatureSchema]
+    ordered_features: List[FeatureSchema]
