@@ -1,12 +1,11 @@
 """Features schema for structured/tabular models."""
 
 import json
+
 from enum import Enum
 from typing import List, Optional, Union
 
 from pydantic import BaseModel
-
-import tensorflow as tf
 
 
 class FeatureType(Enum):
