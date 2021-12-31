@@ -129,3 +129,6 @@ dmypy.json
 .pyre/
 
 .DS_Store
+
+# tests
+structured_transformers/saint/nb_test/

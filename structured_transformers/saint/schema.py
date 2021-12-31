@@ -1,6 +1,6 @@
 """Features schema for structured/tabular models."""
 
-from typing import Dict, Optional, Union
+from typing import Optional, OrderedDict, Union
 from pydantic import BaseModel, validator
 
 import tensorflow as tf
@@ -10,7 +10,7 @@ class FeatureSchema(BaseModel):
     name: str
     feature_type: str
     feature_dimension: int  # 1 if `NUMERICAL`, N if `CATEGORICAL`
-    field_type: Optional[Union[tf.io.FixedLenFeature, tf.dtypes.DType]] = None
+    field_type: Optional[tf.io.FixedLenFeature] = None
     description: Optional[str] = None
     minimum: Optional[Union[int, float]] = None
     maximum: Optional[Union[int, float]] = None
@@ -24,4 +24,4 @@ class FeatureSchema(BaseModel):
 
 class FeaturesMapping(BaseModel):
     name: str
-    mapping: Dict[str, FeatureSchema]
+    mapping: OrderedDict[str, FeatureSchema]
