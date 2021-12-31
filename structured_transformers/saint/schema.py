@@ -17,8 +17,9 @@ class FeatureSchema(BaseModel):
 
     @validator("feature_type")
     def feature_type_match(cls, value):
-        if isinstance(value, str) and (
-            value.upper() not in ["NUMERICAL", "CATEGORICAL"]
+        if not (
+            isinstance(value, str)
+            and (value.upper() not in ["NUMERICAL", "CATEGORICAL"])
         ):
             raise ValueError("`feature_type` must be in [`NUMERICAL`, `CATEGORICAL`]")
         return value.upper()
