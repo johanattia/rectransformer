@@ -145,8 +145,8 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         self.feed_forward_network = MLP(
             hidden_dim=self.hidden_dim,
             output_dim=self.embed_dim,
-            hidden_activation=tf.nn.relu,
-            output_activation=tf.nn.relu,
+            hidden_activation=tf.nn.gelu,
+            output_activation=tf.nn.gelu,
             kernel_initializer=self.kernel_initializer,
             bias_initializer=self.bias_initializer,
             kernel_regularizer=self.kernel_regularizer,
