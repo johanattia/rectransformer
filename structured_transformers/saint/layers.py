@@ -3,12 +3,11 @@
 from typing import Callable, Union
 import tensorflow as tf
 
-# TODO: add input_shape/input_dim/input_layer, hidden_activation (relu or gelu) in MLP and SAINTBlock
-
 
 def MLP(
     hidden_dim: int,
     output_dim: int,
+    hidden_activation: Union[str, Callable] = None,
     output_activation: Union[str, Callable] = None,
     kernel_initializer: Union[str, Callable] = "glorot_uniform",
     bias_initializer: Union[str, Callable] = "zeros",
@@ -24,6 +23,7 @@ def MLP(
     Args:
         hidden_dim (int): [description]
         output_dim (int): [description]
+        hidden_activation (Union[str, Callable], optional): [description]. Defaults to None.
         output_activation (Union[str, Callable], optional): [description]. Defaults to None.
         kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
         bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
@@ -40,7 +40,7 @@ def MLP(
         [
             tf.keras.layers.Dense(
                 units=hidden_dim,
-                activation="relu",
+                activation=hidden_activation,
                 use_bias=True,
                 kernel_initializer=kernel_initializer,
                 bias_initializer=bias_initializer,
@@ -145,6 +145,8 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         self.feed_forward_network = MLP(
             hidden_dim=self.hidden_dim,
             output_dim=self.embed_dim,
+            hidden_activation=tf.nn.relu,
+            output_activation=tf.nn.relu,
             kernel_initializer=self.kernel_initializer,
             bias_initializer=self.bias_initializer,
             kernel_regularizer=self.kernel_regularizer,
@@ -326,8 +328,8 @@ def SAINTBlock(
     return tf.keras.Sequential(
         [
             SelfAttentionBlock(
-                embed_dim=embed_dim,
                 num_heads=num_heads,
+                embed_dim=embed_dim,
                 hidden_dim=hidden_dim,
                 dropout=dropout,
                 epsilon=epsilon,
@@ -341,8 +343,8 @@ def SAINTBlock(
                 **kwargs,
             ),
             IntersampleAttentionBlock(
-                embed_dim=embed_dim,
                 num_heads=num_heads,
+                embed_dim=embed_dim,
                 hidden_dim=hidden_dim,
                 dropout=dropout,
                 epsilon=epsilon,

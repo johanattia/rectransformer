@@ -14,8 +14,8 @@ class SAINT(tf.keras.Model):
     Args:
         input_schema (schema.InputFeaturesSchema): [description]
         n_layers (int): [description]
-        embed_dim (int): [description]
         num_heads (int): [description]
+        embed_dim (int): [description]
         hidden_dim (int): [description]
         dropout (float, optional): [description]. Defaults to 0.1.
         epsilon (float, optional): [description]. Defaults to 1e-6.
@@ -38,8 +38,8 @@ class SAINT(tf.keras.Model):
         self,
         input_schema: schema.InputFeaturesSchema,
         n_layers: int,
-        embed_dim: int,
         num_heads: int,
+        embed_dim: int,
         hidden_dim: int,
         dropout: float = 0.1,
         epsilon: float = 1e-6,
@@ -119,8 +119,8 @@ class SAINT(tf.keras.Model):
         self.encoder = tf.keras.Sequential(
             [
                 SAINTBlock(
-                    embed_dim=self.embed_dim,
                     num_heads=self.num_heads,
+                    embed_dim=self.embed_dim,
                     hidden_dim=self.hidden_dim,
                     dropout=self.dropout,
                     epsilon=self.epsilon,
@@ -158,6 +158,7 @@ class SAINT(tf.keras.Model):
                     MLP(
                         hidden_dim=self.embed_dim,
                         output_dim=feature.feature_dimension,
+                        hidden_activation=tf.nn.relu,
                         output_activation=tf.nn.softmax,
                         kernel_initializer=self.kernel_initializer,
                         bias_initializer=self.bias_initializer,
@@ -175,9 +176,9 @@ class SAINT(tf.keras.Model):
                     self,
                     f"{feature.name}_dense",
                     tf.keras.layers.Dense(
-                        self.embed_dim,
-                        use_bias=True,
+                        units=self.embed_dim,
                         activation=tf.nn.relu,
+                        use_bias=True,
                         kernel_initializer=self.kernel_initializer,
                         bias_initializer=self.bias_initializer,
                         kernel_regularizer=self.kernel_regularizer,
@@ -194,6 +195,7 @@ class SAINT(tf.keras.Model):
                     MLP(
                         hidden_dim=self.embed_dim,
                         output_dim=feature.feature_dimension,
+                        hidden_activation=tf.nn.relu,
                         output_activation=None,
                         kernel_initializer=self.kernel_initializer,
                         bias_initializer=self.bias_initializer,
@@ -210,6 +212,8 @@ class SAINT(tf.keras.Model):
         self.projection_head1 = MLP(
             hidden_dim=self.embed_dim,
             output_dim=self.embed_dim,
+            hidden_activation=tf.nn.relu,
+            output_activation=None,
             kernel_initializer=self.kernel_initializer,
             bias_initializer=self.bias_initializer,
             kernel_regularizer=self.kernel_regularizer,
@@ -224,6 +228,8 @@ class SAINT(tf.keras.Model):
         self.projection_head2 = MLP(
             hidden_dim=self.embed_dim,
             output_dim=self.embed_dim,
+            hidden_activation=tf.nn.relu,
+            output_activation=None,
             kernel_initializer=self.kernel_initializer,
             bias_initializer=self.bias_initializer,
             kernel_regularizer=self.kernel_regularizer,
