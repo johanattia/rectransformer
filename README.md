@@ -16,6 +16,11 @@ TensorFlow implementation of Transformers models for structured data, with a par
 
 ![Temporal Fusion Transformers](image/TFT.png "Temporal Fusion Transformers")
 
+## Non-Parametric Transformers
+* **N**on-**P**arametric **T**ransformers from [Self-Attention Between Datapoints: Going Beyond Individual Input-Output Pairs in Deep Learning](https://arxiv.org/pdf/2106.02584.pdf).
+
+![Non-Parametric Transformers](image/NPT.png "Non-Parametric Transformers")
+
 
 ## License
 [MIT License](LICENSE)
