@@ -20,8 +20,8 @@ class SAINT(tf.keras.Model):
         dropout (float, optional): [description]. Defaults to 0.1.
         epsilon (float, optional): [description]. Defaults to 1e-6.
         cutmix_probability (float, optional): [description]. Defaults to 0.5.
-        seed (int, optional): [description]. Defaults to 26.
         mixup_alpha (float, optional): [description]. Defaults to 0.5.
+        seed (int, optional): [description]. Defaults to 26.
         embeddings_initializer (str, optional): [description]. Defaults to "uniform".
         kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
         bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
@@ -44,8 +44,8 @@ class SAINT(tf.keras.Model):
         dropout: float = 0.1,
         epsilon: float = 1e-6,
         cutmix_probability: float = 0.5,
-        seed: int = 26,
         mixup_alpha: float = 0.5,
+        seed: int = 26,
         embeddings_initializer: str = "uniform",
         kernel_initializer: Union[str, Callable] = "glorot_uniform",
         bias_initializer: Union[str, Callable] = "zeros",
@@ -113,7 +113,7 @@ class SAINT(tf.keras.Model):
 
         # Data Augmentation layers
         self.cutmix_layer = CutMix(probability=self.probability, seed=self.seed)
-        self.mixup_layer = Mixup(alpha=self.alpha)
+        self.mixup_layer = Mixup(alpha=self.alpha, seed=self.seed)
 
         # Transformer Encoder layers
         self.encoder = tf.keras.Sequential(
