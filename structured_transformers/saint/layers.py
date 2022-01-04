@@ -278,7 +278,7 @@ class IntersampleAttentionBlock(SelfAttentionBlock):
         Returns:
             tf.Tensor: [description]
         """
-        batch, n_samples, feature_dim = inputs.shape
+        batch, n_samples, feature_dim = tf.shape(inputs)
         reshaped_inputs = tf.reshape(inputs, (1, batch, n_samples * feature_dim))
 
         attention_output = self.attention_layer(

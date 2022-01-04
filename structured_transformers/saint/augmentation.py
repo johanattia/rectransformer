@@ -1,5 +1,6 @@
 """CutMix and Mixup layers with TensorFlow"""
 
+from typing import Dict, Tuple, Union
 import tensorflow as tf
 
 
@@ -17,26 +18,65 @@ class CutMix(tf.keras.layers.Layer):
         self.probability = probability
         self.seed = seed
 
-    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+    def call(
+        self, inputs: Union[tf.Tensor, Dict[str, tf.Tensor]]
+    ) -> Union[tf.Tensor, Dict[str, tf.Tensor]]:
         """[summary]
 
         Args:
-            inputs (tf.Tensor): [description]
+            inputs (Union[tf.Tensor, Dict[str, tf.Tensor]]): [description]
 
         Returns:
-            tf.Tensor: [description]
+            Union[tf.Tensor, Dict[str, tf.Tensor]]: [description]
         """
         binomial_seeds = tf.random.uniform(
             shape=(2,), minval=0, maxval=self.seed, dtype=tf.int32, seed=self.seed
         )
-        binomial_masks = tf.random.stateless_binomial(
-            inputs.shape, binomial_seeds, counts=1, probs=self.probability
-        )
 
-        shuffled_inputs = tf.random.shuffle(inputs, seed=self.seed)
-        output = inputs * binomial_masks + shuffled_inputs * (1 - binomial_masks)
+        if isinstance(inputs, dict):
+            shape, batch_size = self.nested_shape(inputs)
+            binomial_masks = tf.random.stateless_binomial(
+                shape, binomial_seeds, counts=1, probs=self.probability
+            )
+            shuffled_indices = tf.random.shuffle(tf.range(batch_size, seed=self.seed))
+
+            output = {}
+            for key in inputs.keys():
+                shuffled_inputs = tf.gather(inputs[key], indices=shuffled_indices)
+                output[key] = inputs[key] * binomial_masks + shuffled_inputs * (
+                    1 - binomial_masks
+                )
+
+        elif isinstance(inputs, tf.Tensor):
+            binomial_masks = tf.random.stateless_binomial(
+                tf.shape(inputs), binomial_seeds, counts=1, probs=self.probability
+            )
+            shuffled_inputs = tf.random.shuffle(inputs, seed=self.seed)
+            output = inputs * binomial_masks + shuffled_inputs * (1 - binomial_masks)
+
+        else:
+            raise ValueError(
+                "`inputs` batch must be either a tf.Tensor or a nested dictionary batch of tf.Tensor."
+            )
 
         return output
+
+    def nested_shape(
+        self, inputs: Dict[str, tf.Tensor]
+    ) -> Tuple[str, tf.TensorShape, int]:
+        """[summary]
+
+        Args:
+            inputs (Dict[str, tf.Tensor]): [description]
+
+        Returns:
+            Tuple[str, tf.TensorShape, int]: [description]
+        """
+        key = next(iter(inputs))
+        shape = tf.shape(inputs[key])
+        batch_size = shape[0]
+
+        return shape, batch_size
 
     def get_config(self) -> dict:
         base_config = super(CutMix, self).get_config()
