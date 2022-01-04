@@ -245,8 +245,14 @@ class SAINT(tf.keras.Model):
         )
 
     def EmbeddingLayer(self, inputs: Dict[str, tf.Tensor]) -> tf.Tensor:
+        """[summary]
 
-        # EMBED CATEGORICAL AND NUMERICAL FEATURES
+        Args:
+            inputs (Dict[str, tf.Tensor]): [description]
+
+        Returns:
+            tf.Tensor: [description]
+        """
         features_embeddings = [
             getattr(self, f"{feature.name}_embedding")(inputs[feature.name])
             for feature in self.input_schema.ordered_features
@@ -255,7 +261,6 @@ class SAINT(tf.keras.Model):
         return tf.stack(features_embeddings, axis=1)
 
     def call(self, inputs: tf.Tensor, training: bool) -> tf.Tensor:
-
         # FEATURES EMBEDDINGS LAYER
         features_embeddings = self.EmbeddingLayer(inputs)
 
