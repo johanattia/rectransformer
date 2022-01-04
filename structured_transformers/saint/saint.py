@@ -1,7 +1,8 @@
 """Self-Attention and Intersample Attention Transformer (SAINT) with TensorFlow"""
 
-from typing import Callable, Dict, Iterable, Union
+from typing import Callable, Dict, Union
 import tensorflow as tf
+from tensorflow.python.framework.tensor_util import ExtractBitsFromBFloat16
 
 import schema
 from .layers import MLP, SAINTBlock
@@ -115,8 +116,11 @@ class SAINT(tf.keras.Model):
         self.cutmix_layer = CutMix(probability=self.probability, seed=self.seed)
         self.mixup_layer = Mixup(alpha=self.alpha, seed=self.seed)
 
-        # Transformer Encoder layers
-        self.encoder = tf.keras.Sequential(
+        # Flatten layer
+        self.flatten = tf.keras.layers.Flatten()
+
+        # Transformer Encoder
+        self.SAINT = tf.keras.Sequential(
             [
                 SAINTBlock(
                     num_heads=self.num_heads,
@@ -174,7 +178,7 @@ class SAINT(tf.keras.Model):
             else:
                 setattr(
                     self,
-                    f"{feature.name}_dense",
+                    f"{feature.name}_embedding",
                     tf.keras.layers.Dense(
                         units=self.embed_dim,
                         activation=tf.nn.relu,
@@ -186,7 +190,7 @@ class SAINT(tf.keras.Model):
                         activity_regularizer=self.activity_regularizer,
                         kernel_constraint=self.kernel_constraint,
                         bias_constraint=self.bias_constraint,
-                        name=f"{feature.name}_dense",
+                        name=f"{feature.name}_embedding",
                     ),
                 )
                 setattr(
@@ -221,7 +225,7 @@ class SAINT(tf.keras.Model):
             activity_regularizer=self.activity_regularizer,
             kernel_constraint=self.kernel_constraint,
             bias_constraint=self.bias_constraint,
-            name=f"projection_head1",
+            name="projection_head1",
         )
 
         # Projection head for augmented input
@@ -237,12 +241,45 @@ class SAINT(tf.keras.Model):
             activity_regularizer=self.activity_regularizer,
             kernel_constraint=self.kernel_constraint,
             bias_constraint=self.bias_constraint,
-            name=f"projection_head2",
+            name="projection_head2",
         )
+
+    def EmbeddingLayer(self, inputs: Dict[str, tf.Tensor]) -> tf.Tensor:
+
+        # EMBED CATEGORICAL AND NUMERICAL FEATURES
+        features_embeddings = [
+            getattr(self, f"{feature.name}_embedding")(inputs[feature.name])
+            for feature in self.input_schema.ordered_features
+        ]
+
+        return tf.stack(features_embeddings, axis=1)
+
+    def call(self, inputs: tf.Tensor, training: bool) -> tf.Tensor:
+
+        # FEATURES EMBEDDINGS LAYER
+        features_embeddings = self.EmbeddingLayer(inputs)
+
+        # CONCAT EMBEDDINGS
+        key = next(iter(inputs))
+        batch_size = tf.shape(inputs[key])[0]
+
+        cls_embeddings = tf.tile(
+            tf.reshape(self._CLS, (1, 1, self.embed_dim)),
+            tf.constant([batch_size, 1, 1], dtype=tf.int32),
+        )
+        embeddings = tf.concat([cls_embeddings, features_embeddings], axis=1)
+
+        # SAINT
+        contextual_output = self.SAINT(embeddings, training)
+
+        if not self._pretraining:  # CONTEXTUAL CLS
+            return contextual_output[:, 0, :]
+
+        return self.flatten(contextual_output)
 
     def compile(
         self,
-        pretraining=None,
+        pretraining: bool,
         optimizer="adam",
         loss=None,
         metrics=None,
@@ -263,9 +300,6 @@ class SAINT(tf.keras.Model):
             steps_per_execution=steps_per_execution,
             **kwargs,
         )
-
-    def call(self, inputs: tf.Tensor, training: bool) -> tf.Tensor:
-        raise NotImplementedError("Not yet implemented")
 
     def train_step(self):
         raise NotImplementedError("Not yet implemented")
