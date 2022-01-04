@@ -61,16 +61,14 @@ class CutMix(tf.keras.layers.Layer):
 
         return output
 
-    def nested_shape(
-        self, inputs: Dict[str, tf.Tensor]
-    ) -> Tuple[str, tf.TensorShape, int]:
+    def nested_shape(self, inputs: Dict[str, tf.Tensor]) -> Tuple[tf.TensorShape, int]:
         """[summary]
 
         Args:
             inputs (Dict[str, tf.Tensor]): [description]
 
         Returns:
-            Tuple[str, tf.TensorShape, int]: [description]
+            Tuple[tf.TensorShape, int]: [description]
         """
         key = next(iter(inputs))
         shape = tf.shape(inputs[key])
