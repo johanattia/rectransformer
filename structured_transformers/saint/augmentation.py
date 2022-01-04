@@ -38,7 +38,7 @@ class CutMix(tf.keras.layers.Layer):
             binomial_masks = tf.random.stateless_binomial(
                 shape, binomial_seeds, counts=1, probs=self.probability
             )
-            shuffled_indices = tf.random.shuffle(tf.range(batch_size, seed=self.seed))
+            shuffled_indices = tf.random.shuffle(tf.range(batch_size), seed=self.seed)
 
             output = {}
             for key in inputs.keys():
