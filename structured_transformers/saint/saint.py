@@ -1,11 +1,10 @@
 """Self-Attention and Intersample Attention Transformer (SAINT) with TensorFlow"""
 
-from typing import Callable, Dict, Union
+from typing import Callable, Union
 import tensorflow as tf
-from tensorflow.python.framework.tensor_util import ExtractBitsFromBFloat16
 
 import schema
-from .layers import MLP, SAINTBlock
+from .layers import MLP, TabularEmbedding, SAINTBlock
 from .augmentation import CutMix, Mixup
 
 
@@ -113,14 +112,27 @@ class SAINT(tf.keras.Model):
         """Define SAINT layers."""
 
         # Data Augmentation layers
-        self.cutmix_layer = CutMix(probability=self.probability, seed=self.seed)
-        self.mixup_layer = Mixup(alpha=self.alpha, seed=self.seed)
+        self.cutmix = CutMix(probability=self.probability, seed=self.seed)
+        self.mixup = Mixup(alpha=self.alpha, seed=self.seed)
 
-        # Flatten layer
-        self.flatten = tf.keras.layers.Flatten()
+        # Tabular Embedding layer
+        self.embedding = TabularEmbedding(
+            input_schema=self.input_schema,
+            embed_dim=self.embed_dim,
+            embeddings_initializer=self.embeddings_initializer,
+            kernel_initializer=self.kernel_initializer,
+            bias_initializer=self.bias_initializer,
+            embeddings_regularizer=self.embeddings_regularizer,
+            kernel_regularizer=self.kernel_regularizer,
+            bias_regularizer=self.bias_regularizer,
+            activity_regularizer=self.activity_regularizer,
+            embeddings_constraint=self.embeddings_constraint,
+            kernel_constraint=self.kernel_constraint,
+            bias_constraint=self.bias_constraint,
+        )
 
         # Transformer Encoder
-        self.SAINT = tf.keras.Sequential(
+        self.saint = tf.keras.Sequential(
             [
                 SAINTBlock(
                     num_heads=self.num_heads,
@@ -141,21 +153,13 @@ class SAINT(tf.keras.Model):
             ]
         )
 
+        # Flatten layer
+        self.flatten = tf.keras.layers.Flatten()
+
+        # Denoising layers
         for feature in self.input_schema.ordered_features:
 
             if feature.feature_type is schema.FeatureType.CATEGORICAL:
-                setattr(
-                    self,
-                    f"{feature.name}_embedding",
-                    tf.keras.layers.Embedding(
-                        input_dim=feature.feature_dimension,
-                        output_dim=self.embed_dim,
-                        embeddings_initializer=self.embeddings_initializer,
-                        embeddings_regularizer=self.embeddings_regularizer,
-                        embeddings_constraint=self.embeddings_constraint,
-                        name=f"{feature.name}_embedding",
-                    ),
-                )
                 setattr(
                     self,
                     f"{feature.name}_denoising",
@@ -176,23 +180,6 @@ class SAINT(tf.keras.Model):
                 )
 
             else:
-                setattr(
-                    self,
-                    f"{feature.name}_embedding",
-                    tf.keras.layers.Dense(
-                        units=self.embed_dim,
-                        activation=tf.nn.relu,
-                        use_bias=True,
-                        kernel_initializer=self.kernel_initializer,
-                        bias_initializer=self.bias_initializer,
-                        kernel_regularizer=self.kernel_regularizer,
-                        bias_regularizer=self.bias_regularizer,
-                        activity_regularizer=self.activity_regularizer,
-                        kernel_constraint=self.kernel_constraint,
-                        bias_constraint=self.bias_constraint,
-                        name=f"{feature.name}_embedding",
-                    ),
-                )
                 setattr(
                     self,
                     f"{feature.name}_denoising",
@@ -244,30 +231,12 @@ class SAINT(tf.keras.Model):
             name="projection_head2",
         )
 
-    def EmbeddingLayer(self, inputs: Dict[str, tf.Tensor]) -> tf.Tensor:
-        """[summary]
-
-        Args:
-            inputs (Dict[str, tf.Tensor]): [description]
-
-        Returns:
-            tf.Tensor: [description]
-        """
-        features_embeddings = [
-            getattr(self, f"{feature.name}_embedding")(inputs[feature.name])
-            for feature in self.input_schema.ordered_features
-        ]
-
-        return tf.stack(features_embeddings, axis=1)
-
     def call(self, inputs: tf.Tensor, training: bool) -> tf.Tensor:
-        # FEATURES EMBEDDINGS LAYER
-        features_embeddings = self.EmbeddingLayer(inputs)
+        # Tabular Embedding layer
+        features_embeddings = self.embedding(inputs)
 
-        # CONCAT EMBEDDINGS
-        key = next(iter(inputs))
-        batch_size = tf.shape(inputs[key])[0]
-
+        # Concat embeddings
+        batch_size = tf.shape(features_embeddings)[0]
         cls_embeddings = tf.tile(
             tf.reshape(self._CLS, (1, 1, self.embed_dim)),
             tf.constant([batch_size, 1, 1], dtype=tf.int32),
@@ -275,9 +244,9 @@ class SAINT(tf.keras.Model):
         embeddings = tf.concat([cls_embeddings, features_embeddings], axis=1)
 
         # SAINT
-        contextual_output = self.SAINT(embeddings, training)
+        contextual_output = self.saint(embeddings, training)
 
-        if not self._pretraining:  # CONTEXTUAL CLS
+        if not self._pretraining:  # Contextual CLS
             return contextual_output[:, 0, :]
 
         return self.flatten(contextual_output)
