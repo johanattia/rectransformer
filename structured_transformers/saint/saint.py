@@ -3,7 +3,7 @@
 from typing import Callable, Union
 import tensorflow as tf
 
-import schema
+from .schema import FeatureType, InputFeaturesSchema
 from .layers import MLP, TabularEmbedding, SAINTBlock
 from .augmentation import CutMix, Mixup
 
@@ -12,7 +12,7 @@ class SAINT(tf.keras.Model):
     """[summary]
 
     Args:
-        input_schema (schema.InputFeaturesSchema): [description]
+        input_schema (InputFeaturesSchema): [description]
         n_layers (int): [description]
         num_heads (int): [description]
         embed_dim (int): [description]
@@ -36,7 +36,7 @@ class SAINT(tf.keras.Model):
 
     def __init__(
         self,
-        input_schema: schema.InputFeaturesSchema,
+        input_schema: InputFeaturesSchema,
         n_layers: int,
         num_heads: int,
         embed_dim: int,
@@ -159,7 +159,7 @@ class SAINT(tf.keras.Model):
         # Denoising layers
         for feature in self.input_schema.ordered_features:
 
-            if feature.feature_type is schema.FeatureType.CATEGORICAL:
+            if feature.feature_type is FeatureType.CATEGORICAL:
                 setattr(
                     self,
                     f"{feature.name}_denoising",

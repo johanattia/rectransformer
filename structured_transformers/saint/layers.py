@@ -3,7 +3,10 @@
 from typing import Callable, Dict, Union
 import tensorflow as tf
 
-import schema
+from .schema import InputFeaturesSchema, FeatureType, input_schema_from_json
+
+
+# TODO: add input_shape in Sequential model
 
 
 def MLP(
@@ -90,7 +93,7 @@ class TabularEmbedding(tf.keras.layers.Layer):
 
     def __init__(
         self,
-        input_schema: schema.InputFeaturesSchema,
+        input_schema: InputFeaturesSchema,
         embed_dim: int,
         embeddings_initializer: str = "uniform",
         kernel_initializer: Union[str, Callable] = "glorot_uniform",
@@ -131,7 +134,7 @@ class TabularEmbedding(tf.keras.layers.Layer):
     def set_inner_layers(self):
 
         for feature in self.input_schema.ordered_features:
-            if feature.feature_type is schema.FeatureType.CATEGORICAL:
+            if feature.feature_type is FeatureType.CATEGORICAL:
                 setattr(
                     self,
                     f"{feature.name}_embedding",
@@ -174,7 +177,7 @@ class TabularEmbedding(tf.keras.layers.Layer):
 
     @classmethod
     def from_config(cls, config: Dict):
-        config["input_schema"] = schema.input_schema_from_json(config["input_schema"])
+        config["input_schema"] = input_schema_from_json(config["input_schema"])
         config["embeddings_initializer"] = tf.keras.initializers.deserialize(
             config["embeddings_initializer"]
         )
