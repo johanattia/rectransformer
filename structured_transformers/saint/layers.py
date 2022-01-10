@@ -1,7 +1,9 @@
 """Self Attention and Intersample Attention blocks with TensorFlow"""
 
-from typing import Callable, Union
+from typing import Callable, Dict, Union
 import tensorflow as tf
+
+import schema
 
 
 def MLP(
@@ -66,6 +68,78 @@ def MLP(
             ),
         ]
     )
+
+
+class TabularEmbedding(tf.keras.layers.Layer):
+    """[summary]
+
+    Args:
+        input_schema (schema.InputFeaturesSchema): [description]
+        embed_dim (int): [description]
+        embeddings_initializer (str, optional): [description]. Defaults to "uniform".
+        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
+        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
+        embeddings_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        activity_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
+        embeddings_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+    """
+
+    def __init__(
+        self,
+        input_schema: schema.InputFeaturesSchema,
+        embed_dim: int,
+        embeddings_initializer: str = "uniform",
+        kernel_initializer: Union[str, Callable] = "glorot_uniform",
+        bias_initializer: Union[str, Callable] = "zeros",
+        embeddings_regularizer: Union[str, Callable] = None,
+        kernel_regularizer: Union[str, Callable] = None,
+        bias_regularizer: Union[str, Callable] = None,
+        activity_regularizer: Union[str, Callable] = None,
+        embeddings_constraint: Union[str, Callable] = None,
+        kernel_constraint: Union[str, Callable] = None,
+        bias_constraint: Union[str, Callable] = None,
+        **kwargs,
+    ):
+        super(TabularEmbedding, self).__init__(**kwargs)
+
+        # Input schema
+        self.input_schema = input_schema
+
+        # Embedding dim
+        self.embed_dim = embed_dim
+
+        # Trainable weights
+        self.embeddings_initializer = embeddings_initializer
+        self.kernel_initializer = kernel_initializer
+        self.bias_initializer = bias_initializer
+
+        self.embeddings_regularizer = embeddings_regularizer
+        self.kernel_regularizer = kernel_regularizer
+        self.bias_regularizer = bias_regularizer
+        self.activity_regularizer = activity_regularizer
+
+        self.embeddings_constraint = embeddings_constraint
+        self.kernel_constraint = kernel_constraint
+        self.bias_constraint = bias_constraint
+
+        self.set_inner_layers()
+
+    def set_inner_layers(self):
+        raise NotImplementedError
+
+    def call(self):
+        raise NotImplementedError
+
+    @classmethod
+    def from_config(cls, config: Dict):
+        raise NotImplementedError
+
+    def get_config(self) -> dict:
+        raise NotImplementedError
 
 
 class SelfAttentionBlock(tf.keras.layers.Layer):
