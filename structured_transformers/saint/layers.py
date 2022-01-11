@@ -6,7 +6,9 @@ import tensorflow as tf
 from .schema import InputFeaturesSchema, FeatureType, input_schema_from_json
 
 
-# TODO: add input_shape in Sequential model
+# TODO:
+# 1. Add input_shape in Sequential model
+# 2. Review `from_config` methods
 
 
 def MLP(
