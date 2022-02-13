@@ -1,14 +1,12 @@
 """Self Attention and Intersample Attention blocks with TensorFlow"""
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Iterable, Union
 import tensorflow as tf
 
 from .schema import InputFeaturesSchema, FeatureType, input_schema_from_json
 
 
-# TODO:
-# 1. Add input_shape in Sequential model
-# 2. Review `from_config` methods
+# TODO: rReview `from_config` methods
 
 
 def MLP(
@@ -75,7 +73,7 @@ def MLP(
     )
 
 
-class TabularEmbedding(tf.keras.layers.Layer):
+class StructuredEmbedding(tf.keras.layers.Layer):
     """[summary]
 
     Args:
@@ -109,7 +107,7 @@ class TabularEmbedding(tf.keras.layers.Layer):
         bias_constraint: Union[str, Callable] = None,
         **kwargs,
     ):
-        super(TabularEmbedding, self).__init__(**kwargs)
+        super(StructuredEmbedding, self).__init__(**kwargs)
 
         # Input schema
         self.input_schema = input_schema
@@ -131,10 +129,8 @@ class TabularEmbedding(tf.keras.layers.Layer):
         self.kernel_constraint = tf.keras.constraints.get(kernel_constraint)
         self.bias_constraint = tf.keras.constraints.get(bias_constraint)
 
-        self.set_inner_layers()
-
-    def set_inner_layers(self):
-
+    def build(self, input_shape: Union[tf.TensorShape, Iterable[tf.TensorShape]]):
+        # Ddefining numerical/categorical embedding layers
         for feature in self.input_schema.ordered_features:
             if feature.feature_type is FeatureType.CATEGORICAL:
                 setattr(
@@ -167,6 +163,8 @@ class TabularEmbedding(tf.keras.layers.Layer):
                         name=f"{feature.name}_embedding",
                     ),
                 )
+
+        super(StructuredEmbedding, self).build(input_shape)
 
     def call(self, inputs: Dict[str, tf.Tensor]) -> tf.Tensor:
         return tf.stack(
@@ -213,7 +211,7 @@ class TabularEmbedding(tf.keras.layers.Layer):
         return cls(**config)
 
     def get_config(self) -> dict:
-        base_config = super(TabularEmbedding, self).get_config()
+        base_config = super(StructuredEmbedding, self).get_config()
         config = {
             "input_schema": self.input_schema.json(),
             "embed_dim": self.embed_dim,
@@ -298,11 +296,8 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         self.kernel_constraint = tf.keras.constraints.get(kernel_constraint)
         self.bias_constraint = tf.keras.constraints.get(bias_constraint)
 
-        self.set_inner_layers()
-
-    def set_inner_layers(self):
-        """Define Self Attention/Transformer block layers."""
-
+    def build(self, input_shape: Union[tf.TensorShape, Iterable[tf.TensorShape]]):
+        # Defining Transformer block layers
         self.attention_layer = tf.keras.layers.MultiHeadAttention(
             num_heads=self.num_heads,
             key_dim=self.embed_dim,
@@ -336,6 +331,8 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
 
         self.dropout1 = tf.keras.layers.Dropout(rate=self.dropout)
         self.dropout2 = tf.keras.layers.Dropout(rate=self.dropout)
+
+        super(SelfAttentionBlock, self).build(input_shape)
 
     def call(self, inputs: tf.Tensor, training: bool, mask: tf.Tensor) -> tf.Tensor:
         """[summary]

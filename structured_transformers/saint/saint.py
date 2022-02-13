@@ -1,10 +1,12 @@
 """Self-Attention and Intersample Attention Transformer (SAINT) with TensorFlow"""
 
-from typing import Callable, Union
+from typing import Callable, Dict, Iterable, Union
+
 import tensorflow as tf
+from tensorflow.python.keras.engine import data_adapter
 
 from .schema import FeatureType, InputFeaturesSchema
-from .layers import MLP, TabularEmbedding, SAINTBlock
+from .layers import MLP, StructuredEmbedding, SAINTBlock
 from .augmentation import CutMix, Mixup
 
 
@@ -92,31 +94,25 @@ class SAINT(tf.keras.Model):
         self.kernel_constraint = kernel_constraint
         self.bias_constraint = bias_constraint
 
-        # Self-supervised pretraining/supervised training
-        self._pretraining = None
+        # Self-supervised pretraining/downstream training
+        self._downstream = None
 
-        self.set_inner_layers()
-
-    def build(self):
-        """Build CLS embedding, used for supervised downstream tasks."""
-
+    def build(self, input_shape: Union[tf.TensorShape, Iterable[tf.TensorShape]]):
+        # CLS token
         self._CLS = self.add_weight(
             name="CLS",
-            shape=(self.embed_dim,),
+            shape=(1, 1, self.embed_dim),
             initializer=self.embeddings_initializer,
             regularizer=self.embeddings_regularizer,
             constraint=self.embeddings_constraint,
         )
-
-    def set_inner_layers(self):
-        """Define SAINT layers."""
 
         # Data Augmentation layers
         self.cutmix = CutMix(probability=self.probability, seed=self.seed)
         self.mixup = Mixup(alpha=self.alpha, seed=self.seed)
 
         # Tabular Embedding layer
-        self.embedding = TabularEmbedding(
+        self.embedding = StructuredEmbedding(
             input_schema=self.input_schema,
             embed_dim=self.embed_dim,
             embeddings_initializer=self.embeddings_initializer,
@@ -158,46 +154,26 @@ class SAINT(tf.keras.Model):
 
         # Denoising layers
         for feature in self.input_schema.ordered_features:
-
-            if feature.feature_type is FeatureType.CATEGORICAL:
-                setattr(
-                    self,
-                    f"{feature.name}_denoising",
-                    MLP(
-                        hidden_dim=self.embed_dim,
-                        output_dim=feature.feature_dimension,
-                        hidden_activation=tf.nn.relu,
-                        output_activation=tf.nn.softmax,
-                        kernel_initializer=self.kernel_initializer,
-                        bias_initializer=self.bias_initializer,
-                        kernel_regularizer=self.kernel_regularizer,
-                        bias_regularizer=self.bias_regularizer,
-                        activity_regularizer=self.activity_regularizer,
-                        kernel_constraint=self.kernel_constraint,
-                        bias_constraint=self.bias_constraint,
-                        name=f"{feature.name}_denoising",
-                    ),
-                )
-
-            else:
-                setattr(
-                    self,
-                    f"{feature.name}_denoising",
-                    MLP(
-                        hidden_dim=self.embed_dim,
-                        output_dim=feature.feature_dimension,
-                        hidden_activation=tf.nn.relu,
-                        output_activation=None,
-                        kernel_initializer=self.kernel_initializer,
-                        bias_initializer=self.bias_initializer,
-                        kernel_regularizer=self.kernel_regularizer,
-                        bias_regularizer=self.bias_regularizer,
-                        activity_regularizer=self.activity_regularizer,
-                        kernel_constraint=self.kernel_constraint,
-                        bias_constraint=self.bias_constraint,
-                        name=f"{feature.name}_denoising",
-                    ),
-                )
+            setattr(
+                self,
+                f"{feature.name}_denoising",
+                MLP(
+                    hidden_dim=self.embed_dim,
+                    output_dim=feature.feature_dimension,
+                    hidden_activation=tf.nn.relu,
+                    output_activation=tf.nn.softmax
+                    if feature.feature_type is FeatureType.CATEGORICAL
+                    else None,
+                    kernel_initializer=self.kernel_initializer,
+                    bias_initializer=self.bias_initializer,
+                    kernel_regularizer=self.kernel_regularizer,
+                    bias_regularizer=self.bias_regularizer,
+                    activity_regularizer=self.activity_regularizer,
+                    kernel_constraint=self.kernel_constraint,
+                    bias_constraint=self.bias_constraint,
+                    name=f"{feature.name}_denoising",
+                ),
+            )
 
         # Projection head for input
         self.projection_head1 = MLP(
@@ -231,52 +207,49 @@ class SAINT(tf.keras.Model):
             name="projection_head2",
         )
 
-    def call(self, inputs: tf.Tensor, training: bool) -> tf.Tensor:
-        # Tabular Embedding layer
-        features_embeddings = self.embedding(inputs)
+        super(SAINT, self).build(input_shape)
+
+    def call(
+        self,
+        inputs: Union[tf.Tensor, Dict[str, tf.Tensor]],
+        training: bool,
+        augmentation: bool = False,
+    ) -> tf.Tensor:
+        # Structured Embedding layer
+        if augmentation:
+            augmented_inputs = self.cutmix(inputs)
+            features_embeddings = self.mixup(self.embedding(augmented_inputs))
+        else:
+            features_embeddings = self.embedding(inputs)
 
         # Concat embeddings
         batch_size = tf.shape(features_embeddings)[0]
-        cls_embeddings = tf.tile(
-            tf.reshape(self._CLS, (1, 1, self.embed_dim)),
-            tf.constant([batch_size, 1, 1], dtype=tf.int32),
+        cls_embeddings = tf.repeat(
+            self._CLS, repeats=tf.constant([batch_size], dtype=tf.int32), axis=0
         )
         embeddings = tf.concat([cls_embeddings, features_embeddings], axis=1)
 
         # SAINT
         contextual_output = self.saint(embeddings, training)
 
-        if not self._pretraining:  # Contextual CLS
+        if self._downstream:  # Contextual CLS
             return contextual_output[:, 0, :]
 
         return self.flatten(contextual_output)
 
-    def compile(
-        self,
-        pretraining: bool,
-        optimizer="adam",
-        loss=None,
-        metrics=None,
-        loss_weights=None,
-        weighted_metrics=None,
-        run_eagerly=None,
-        steps_per_execution=None,
-        **kwargs,
-    ):
-        self._pretraining = pretraining
-        super(SAINT, self).compile(
-            optimizer=optimizer,
-            loss=loss,
-            metrics=metrics,
-            loss_weights=loss_weights,
-            weighted_metrics=weighted_metrics,
-            run_eagerly=run_eagerly,
-            steps_per_execution=steps_per_execution,
-            **kwargs,
-        )
+    def compile(self, downstream: bool = False, **kwargs):
+        self._downstream = downstream
+        super(SAINT, self).compile(**kwargs)
 
-    def train_step(self):
-        raise NotImplementedError("Not yet implemented")
+    def train_step(self, data: Union[tf.Tensor, Dict[str, tf.Tensor]]):
+        # Processing data before forward
+        x, y, sample_weight = tf.keras.utils.unpack_x_y_sample_weight(data)
+
+        with tf.GradientTape() as tape:
+            features = self(x, training=True)
+            augmented_features = self(x, training=True, augmentation=True)
+
+        return NotImplemented
 
     def get_config(self):
         raise NotImplementedError("Not yet implemented")
