@@ -60,7 +60,7 @@ class SAINT(tf.keras.Model):
         bias_constraint: Union[str, Callable] = None,
         **kwargs,
     ):
-        super(SAINT, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         # Input schema
         self.input_schema = input_schema
@@ -93,9 +93,6 @@ class SAINT(tf.keras.Model):
         self.embeddings_constraint = embeddings_constraint
         self.kernel_constraint = kernel_constraint
         self.bias_constraint = bias_constraint
-
-        # Self-supervised pretraining/downstream training
-        self._downstream = None
 
     def build(self, input_shape: Union[tf.TensorShape, Iterable[tf.TensorShape]]):
         # CLS token
@@ -207,7 +204,7 @@ class SAINT(tf.keras.Model):
             name="projection_head2",
         )
 
-        super(SAINT, self).build(input_shape)
+        super().build(input_shape)
 
     def call(
         self,
@@ -232,24 +229,71 @@ class SAINT(tf.keras.Model):
         # SAINT
         contextual_output = self.saint(embeddings, training)
 
-        if self._downstream:  # Contextual CLS
-            return contextual_output[:, 0, :]
+        # Output
+        batch_output = {
+            "output": contextual_output,
+            "flatten_output": self.flatten(contextual_output),
+            "cls_output": contextual_output[:, 0, :]
+        }
 
-        return self.flatten(contextual_output)
+        return batch_output
 
-    def compile(self, downstream: bool = False, **kwargs):
-        self._downstream = downstream
-        super(SAINT, self).compile(**kwargs)
+    def compile(
+        self,
+        contrastive_temperature: float,
+        contrastive_optimizer: tf.keras.optimizers.Optimizer,
+        reconstruction_optimizer: tf.keras.optimizers.Optimizer,
+        **kwargs
+    ):
+        """
+        
+        """
+        super().compile(**kwargs)
+
+        self.contrastive_temperature = contrastive_temperature
+        self.contrastive_optimizer = contrastive_optimizer
+        self.reconstruction_optimizer = reconstruction_optimizer
+        
+        self.contrastive_loss_tracker = tf.keras.metrics.Mean(name="contrastive_loss_tracker")
+        self.contrastive_accuracy = tf.keras.metrics.SparseCategoricalAccuracy(
+            name="contrastive_accuracy"
+        )
+
+        self.reconstruction_losses = {}
 
     def train_step(self, data: Union[tf.Tensor, Dict[str, tf.Tensor]]):
         # Processing data before forward
         x, y, sample_weight = tf.keras.utils.unpack_x_y_sample_weight(data)
 
+        # Contrastive learning
         with tf.GradientTape() as tape:
             features = self(x, training=True)
             augmented_features = self(x, training=True, augmentation=True)
 
+            flatten_output = features["flatten_output"]
+            augmented_flatten_output = augmented_features["flatten_output"]
+
+        # Contrastive learning
+
         return NotImplemented
+
+    def contrastive_loss(self, features1: tf.Tensor, features2: tf.Tensor) -> tf.Tensor:
+
+        normalized_features1 = tf.math.l2_normalize(projections_1, axis=1)
+        normalized_features2 = tf.math.l2_normalize(projections_2, axis=1)
+
+        similarities = (
+            tf.matmul(
+                normalized_features1,
+                normalized_features2,
+                transpose_b=True
+            ) / self.contrastive_temperature
+        )
+
+        batch_size = tf.shape(features1)[0]
+        contrastive_labels = tf.range(batch_size)
+        
+        return
 
     def get_config(self):
         raise NotImplementedError("Not yet implemented")
