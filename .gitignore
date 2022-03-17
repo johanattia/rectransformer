@@ -131,4 +131,4 @@ dmypy.json
 .DS_Store
 
 # tests
-tensorflow_saint/saint/nb_test
+tf_saint/notebook_test/
