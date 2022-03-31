@@ -1,9 +1,11 @@
-# tf-saint
-TensorFlow implementation of **S**elf-**A**ttention and **In**tersample Attention **T**ransformer from [SAINT: Improved Neural Networks for Tabular Data via Row Attention and Contrastive Pre-Training](https://arxiv.org/pdf/2106.01342.pdf).
+# structured-transformers
+Implementations of some Deep Learning algorithms for structured data with TensorFlow.
 
-![Self-Attention and Intersample Attention Transformer](image/SAINT.png "Self-Attention and Intersample Attention Transformer")
+## Algorithms
+* **S**elf-**A**ttention and **In**tersample Attention **T**ransformer: [SAINT: Improved Neural Networks for Tabular Data via Row Attention and Contrastive Pre-Training](https://arxiv.org/abs/2106.01342)
+* **T**emporal **F**usion **T**ransformers: [Temporal Fusion Transformers for interpretable multi-horizon time series forecasting](https://www.sciencedirect.com/science/article/pii/S0169207021000637)
+* **L**og**S**parse **T**ransformer: [Enhancing the Locality and Breaking the Memory Bottleneck of Transformer on Time Series Forecasting](https://arxiv.org/abs/1907.00235)
 
-Please find [here](https://github.com/somepago/saint) the original PyTorch implementation of article authors.
 
 ## License
 [MIT License](LICENSE)
