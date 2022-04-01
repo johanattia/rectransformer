@@ -2,14 +2,24 @@
 
 from typing import Callable, Dict, Iterable, Union
 
+
 import tensorflow as tf
+
+import tensorflow_data_validation as tfdv
+from tensorflow_metadata.proto.v0 import schema_pb2
+
 
 from .schema import FeatureType, InputFeaturesSchema
 from .layers import MLP, StructuredEmbedding, SAINTBlock
 from .augmentation import CutMix, Mixup
 
 
-# TODO: explore complete tensor projection instead of for-loops for denoising
+schema_utils = tfdv.utils.schema_util
+
+
+# TODO:
+# Explore complete tensor projection instead of for-loops for denoising
+# Replace custom (pydantic) schema with protobuf schema for easy TFX integration
 
 
 class SAINT(tf.keras.Model):
@@ -137,20 +147,20 @@ class SAINT(tf.keras.Model):
         self.mixup = Mixup(alpha=self.alpha, seed=self.seed)
 
         # Tabular Embedding layer
-        self.embedding = StructuredEmbedding(
-            input_schema=self.input_schema,
-            embed_dim=self.embed_dim,
-            embeddings_initializer=self.embeddings_initializer,
-            kernel_initializer=self.kernel_initializer,
-            bias_initializer=self.bias_initializer,
-            embeddings_regularizer=self.embeddings_regularizer,
-            kernel_regularizer=self.kernel_regularizer,
-            bias_regularizer=self.bias_regularizer,
-            activity_regularizer=self.activity_regularizer,
-            embeddings_constraint=self.embeddings_constraint,
-            kernel_constraint=self.kernel_constraint,
-            bias_constraint=self.bias_constraint,
-        )
+        # self.embedding = StructuredEmbedding(
+        #    input_schema=self.input_schema,
+        #    embed_dim=self.embed_dim,
+        #    embeddings_initializer=self.embeddings_initializer,
+        #    kernel_initializer=self.kernel_initializer,
+        #    bias_initializer=self.bias_initializer,
+        #    embeddings_regularizer=self.embeddings_regularizer,
+        #    kernel_regularizer=self.kernel_regularizer,
+        #    bias_regularizer=self.bias_regularizer,
+        #    activity_regularizer=self.activity_regularizer,
+        #    embeddings_constraint=self.embeddings_constraint,
+        #    kernel_constraint=self.kernel_constraint,
+        #    bias_constraint=self.bias_constraint,
+        # )
 
         # Transformer Encoder
         self.saint = tf.keras.Sequential(
@@ -178,27 +188,27 @@ class SAINT(tf.keras.Model):
         self.flatten = tf.keras.layers.Flatten()
 
         # Denoising layers
-        for feature in self.input_schema.ordered_features:
-            setattr(
-                self,
-                f"{feature.name}_denoising",
-                MLP(
-                    hidden_dim=self.embed_dim,
-                    output_dim=feature.feature_dimension,
-                    hidden_activation=tf.nn.relu,
-                    output_activation=tf.nn.softmax
-                    if feature.feature_type is FeatureType.CATEGORICAL
-                    else None,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    activity_regularizer=self.activity_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
-                    name=f"{feature.name}_denoising",
-                ),
-            )
+        # for feature in self.input_schema.ordered_features:
+        #    setattr(
+        #        self,
+        #        f"{feature.name}_denoising",
+        #        MLP(
+        #            hidden_dim=self.embed_dim,
+        #            output_dim=feature.feature_dimension,
+        #            hidden_activation=tf.nn.relu,
+        #            output_activation=tf.nn.softmax
+        #            if feature.feature_type is FeatureType.CATEGORICAL
+        #            else None,
+        #            kernel_initializer=self.kernel_initializer,
+        #            bias_initializer=self.bias_initializer,
+        #            kernel_regularizer=self.kernel_regularizer,
+        #            bias_regularizer=self.bias_regularizer,
+        #            activity_regularizer=self.activity_regularizer,
+        #            kernel_constraint=self.kernel_constraint,
+        #            bias_constraint=self.bias_constraint,
+        #            name=f"{feature.name}_denoising",
+        #        ),
+        #    )
 
         # Projection head for input
         self.projection_head1 = MLP(
@@ -234,11 +244,32 @@ class SAINT(tf.keras.Model):
 
         super().build(input_shape)
 
+    def build_from_schema_and_dataset(
+        self,
+        schema: schema_pb2.Schema,
+        dataset: tf.data.Dataset,
+        int_as_cat: bool = True,
+    ):
+        """Build preprocessing and embeddings layers from protocol buffers schema and
+        training dataset.
+
+        Args:
+            schema (schema_pb2.Schema): Protocol buffers schema of training data.
+            dataset (tf.data.Dataset): Training dataset. Samples should be formated as dict
+                following the protobuf data schema.
+            int_as_cat (bool, optional): Whether domain of INT features must be updated as
+                categorical. Defaults to True.
+        """
+
+        self.schema = schema
+
+        return
+
     def call(
         self,
         inputs: Union[tf.Tensor, Dict[str, tf.Tensor]],
         training: bool,
-        augmentation: bool = False,
+        augment: bool = False,
     ) -> tf.Tensor:
         """_summary_
 
@@ -251,7 +282,7 @@ class SAINT(tf.keras.Model):
             tf.Tensor: _description_
         """
         # Structured Embedding layer
-        if augmentation:
+        if augment:
             augmented_inputs = self.cutmix(inputs)
             features_embeddings = self.mixup(self.embedding(augmented_inputs))
         else:
@@ -268,12 +299,11 @@ class SAINT(tf.keras.Model):
         contextual_output = self.saint(embeddings, training)
 
         # Output
-        batch_output = {
-            "output": contextual_output,
-            "flatten_output": self.flatten(contextual_output),
+        output = {
+            "full_output": contextual_output,
             "cls_output": contextual_output[:, 0, :],
         }
-        return batch_output
+        return output
 
     def compile(
         self,
@@ -317,10 +347,10 @@ class SAINT(tf.keras.Model):
         with tf.GradientTape() as tape:
             # Forward
             features1 = self(x, training=True)
-            features1 = features1["flatten_output"]
+            features1 = self.flatten(features1["full_output"])
 
-            features2 = self(x, training=True, augmentation=True)
-            features2 = features2["flatten_output"]
+            features2 = self(x, training=True, augment=True)
+            features2 = self.flatten(features2["full_output"])
 
             # Contrastive loss
             projection1 = self.projection_head1(features1)
