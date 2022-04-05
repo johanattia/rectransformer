@@ -1,5 +1,5 @@
 # structured-transformers
-Implementations of some Transformer algorithms for structured data with TensorFlow.
+Transformer models for structured data with TensorFlow.
 
 ## Algorithms
 * **S**elf-**A**ttention and **In**tersample Attention **T**ransformer: [SAINT: Improved Neural Networks for Tabular Data via Row Attention and Contrastive Pre-Training](https://arxiv.org/abs/2106.01342)
