@@ -8,10 +8,9 @@ import tensorflow as tf
 import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import schema_pb2
 
-
-from .schema import FeatureType, InputFeaturesSchema
-from .layers import MLP, StructuredEmbedding, SAINTBlock
-from .augmentation import CutMix, Mixup
+from ..utils.schema import FeatureType, InputFeaturesSchema
+from ..layers import CutMix, Mixup
+from ..layers import MLP, SAINTBlock
 
 
 schema_utils = tfdv.utils.schema_util
