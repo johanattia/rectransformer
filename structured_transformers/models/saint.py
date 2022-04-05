@@ -9,6 +9,7 @@ import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 from ..utils.schema import FeatureType, InputFeaturesSchema
+
 from ..layers import CutMix, Mixup
 from ..layers import FeedForwardNetwork, SAINTBlock
 
@@ -104,6 +105,7 @@ class SAINT(tf.keras.Model):
 
         # Input schema
         self.input_schema = input_schema
+        self._schema = None
 
         # Transformer Encoder hyperparameters
         self.n_layers = n_layers
@@ -218,7 +220,7 @@ class SAINT(tf.keras.Model):
         #    )
 
         # Projection head for input
-        self.projection_head1 = MLP(
+        self.projection_head1 = FeedForwardNetwork(
             hidden_dim=self.embed_dim,
             output_dim=self.embed_dim,
             hidden_activation=tf.nn.relu,
@@ -234,7 +236,7 @@ class SAINT(tf.keras.Model):
         )
 
         # Projection head for augmented input
-        self.projection_head2 = MLP(
+        self.projection_head2 = FeedForwardNetwork(
             hidden_dim=self.embed_dim,
             output_dim=self.embed_dim,
             hidden_activation=tf.nn.relu,
@@ -252,25 +254,72 @@ class SAINT(tf.keras.Model):
         super().build(input_shape)
 
     def build_from_schema_and_dataset(
-        self,
-        schema: schema_pb2.Schema,
-        dataset: tf.data.Dataset,
-        int_as_cat: bool = True,
-    ):
-        """Build preprocessing and embeddings layers from protocol buffers schema and
+        self, schema: schema_pb2.Schema, dataset: tf.data.Dataset
+    ) -> tf.data.Dataset:
+        """Perform preprocessing and build embeddings layers from protobuf schema and
         training dataset.
 
         Args:
             schema (schema_pb2.Schema): Protocol buffers schema of training data.
             dataset (tf.data.Dataset): Training dataset. Samples should be formated as dict
                 following the protobuf data schema.
-            int_as_cat (bool, optional): Whether domain of INT features must be updated as
-                categorical. Defaults to True.
+
+        Returns:
+            tf.data.Dataset: _description_
         """
+        for feature in schema.feature:
 
-        self.schema = schema
+            if feature.type == schema_pb2.INT:
+                feature.int_domain.is_categorical = True
+                preprocessing_layer = tf.keras.layers.IntegerLookup()
+            elif (
+                schema_utils.is_categorical_feature(feature)
+                and feature.type == schema_pb2.BYTES
+            ):
+                preprocessing_layer = tf.keras.layers.StringLookup()
+            else:
+                preprocessing_layer = tf.keras.layers.Normalization()
 
-        return
+            feature_dataset = dataset.map(lambda x, y: x[feature.name])
+            preprocessing_layer.adapt(feature_dataset)
+
+            setattr(f"{feature.name}_preprocessing", preprocessing_layer)
+
+        self._schema = schema
+
+        dataset = self.apply_preprocessing(dataset)
+        return dataset
+
+    def apply_preprocessing(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
+        """Apply preprocessing layers at inference/prediction step.
+
+        Args:
+            dataset (tf.data.Dataset): Prediction dataset.
+
+        Returns:
+            tf.data.Dataset: Preprocessed dataset, ready for prediction.
+        """
+        if self._schema is None:
+            raise AttributeError(
+                """
+                A valid protobuf schema must be given at a previous step, e.g. using
+                `build_from_schema_and_dataset` method. For more details, see source code
+                or documentation.
+                """
+            )
+
+        dataset = dataset.map(
+            lambda x, y: (
+                {
+                    feature.name: getattr(f"{feature.name}_preprocessing")(
+                        x[f"{feature.name}"]
+                    )
+                    for feature in self._schema.feature
+                },
+                y,
+            )
+        )
+        return dataset
 
     def call(
         self,
@@ -288,10 +337,9 @@ class SAINT(tf.keras.Model):
         Returns:
             tf.Tensor: _description_
         """
-        # Structured Embedding layer
+        # Embedding layer
         if augment:
-            augmented_inputs = self.cutmix(inputs)
-            features_embeddings = self.mixup(self.embedding(augmented_inputs))
+            features_embeddings = self.mixup(self.embedding(self.cutmix(inputs)))
         else:
             features_embeddings = self.embedding(inputs)
 
@@ -314,23 +362,26 @@ class SAINT(tf.keras.Model):
 
     def compile(
         self,
+        pretraining_loss: tf.keras.losses.Loss,
         denoising_lambda: float,
-        contrastive_temperature: float,
+        temperature: float,
         **kwargs,
     ):
         """_summary_
 
         Args:
+            pretraining_loss (tf.keras.losses.Loss): _description_
             denoising_lambda (float): _description_
-            contrastive_temperature (float): _description_
+            temperature (float): _description_
         """
         super().compile(**kwargs)
 
+        self.pretraining_loss = pretraining_loss
         self.denoising_lambda = denoising_lambda
-        self.contrastive_temperature = contrastive_temperature
+        self.temperature = temperature
 
-        self.contrastive_loss_tracker = tf.keras.metrics.Mean(
-            name="contrastive_loss_tracker"
+        self.pretraining_loss_loss_tracker = tf.keras.metrics.Mean(
+            name="pretraining_loss_loss_tracker"
         )
         self.denoising_tracker = {
             feature.name: tf.keras.metrics.Mean(name=f"{feature.name}_tracker")
@@ -363,7 +414,7 @@ class SAINT(tf.keras.Model):
             projection1 = self.projection_head1(features1)
             projection2 = self.projection_head2(features2)
 
-            contrastive_loss = self.contrastive_loss(
+            pretraining_loss = self.pretraining_loss(
                 projection1=projection1, projection2=projection2
             )
 
@@ -375,7 +426,7 @@ class SAINT(tf.keras.Model):
             denoising_loss = self.denoising_loss(inputs=x, outputs=denoising_outputs)
 
             # Pre-training loss
-            loss = contrastive_loss + self.denoising_lambda * denoising_loss
+            loss = pretraining_loss + self.denoising_lambda * denoising_loss
 
         self.optimizer.minimize(loss, self.trainable_variables, tape=tape)
         return NotImplemented
