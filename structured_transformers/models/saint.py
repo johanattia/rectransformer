@@ -10,7 +10,7 @@ from tensorflow_metadata.proto.v0 import schema_pb2
 
 from ..utils.schema import FeatureType, InputFeaturesSchema
 from ..layers import CutMix, Mixup
-from ..layers import MLP, SAINTBlock
+from ..layers import FeedForwardNetwork, SAINTBlock
 
 
 schema_utils = tfdv.utils.schema_util
@@ -23,24 +23,32 @@ schema_utils = tfdv.utils.schema_util
 
 class SAINT(tf.keras.Model):
     """Self-Attention and Intersample Attention Transformer (SAINT).
-    The training logic implemented is a self-supervised pre-training technique composed
-    of a constrastive loss and tabular features reconstruction.
+    The training logic implemented is a self-supervised pre-training associated to
+    a features reconstruction task.
 
     For more details, see the paper: https://arxiv.org/pdf/2106.01342.pdf.
 
     Example:
     ```python
-    import tensorflow as tf
-    import tf_saint
+    >>> import tensorflow as tf
+    >>> import tensorflow_datasets as tfds
+    >>> import tensorflow_data_validation as tfdv
 
-    dataset_schema = tf_saint.input_schema_from_json(dataset_schema_json)
-    tabular_model = tf_saint.SAINT(
-        input_schema=dataset_schema,
-        n_layers=6,
-        num_heads=8
-        embed_dim=512,
-        hidden_dim512,
-    )
+    >>> import structured_transformers
+
+    >>> diamonds_ds = tfds.load('diamonds', split='train', shuffle_files=True)
+    >>> diamonds_df = tfds.as_dataframe(diamonds_ds)
+
+    >>> diamonds_stats = tfdv.generate_statistics_from_dataframe(diamonds_df)
+    >>> diamonds_schema = tfdv.infer_schema(statistics=diamonds_stats)
+
+    >>> saint_model = structured_transformers.models.SAINT(
+            n_layers=6,
+            num_heads=8
+            embed_dim=512,
+            hidden_dim512,
+        )
+    >>> saint_model.build_from_schema_and_dataset(diamonds_schema, diamonds_ds)
     ```
     """
 

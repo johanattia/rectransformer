@@ -1,2 +1,2 @@
 from .augmentation import CutMix, Mixup
-from .transformer import MLP, SAINTBlock
+from .transformer import FeedForwardNetwork, SAINTBlock
