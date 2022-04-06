@@ -44,19 +44,21 @@ class SimCLR(tf.keras.losses.Loss):
         self.temperature = temperature
         self.margin = margin
 
-    def call(self, feature1: tf.Tensor, feature2: tf.Tensor) -> tf.Tensor:
+    def call(self, hidden1: tf.Tensor, hidden2: tf.Tensor) -> tf.Tensor:
         """_summary_
 
         Args:
-            feature1 (tf.Tensor): _description_
-            feature2 (tf.Tensor): _description_
+            hidden1 (tf.Tensor): _description_
+            hidden2 (tf.Tensor): _description_
 
         Returns:
             tf.Tensor: _description_
         """
-
-        batch_size = tf.shape(feature1)[0]
+        batch_size = tf.shape(hidden1)[0]
         diag = tf.eye(batch_size)
+
+        hidden1 = tf.math.l2_normalize(hidden1, axis=1)
+        hidden2 = tf.math.l2_normalize(hidden2, axis=1)
 
         return NotImplemented
 
