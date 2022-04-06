@@ -29,6 +29,7 @@ class SAINT(tf.keras.Model):
     Example:
     ```python
     >>> import tensorflow as tf
+    >>> import tensorflow_addons as tfa
     >>> import tensorflow_datasets as tfds
     >>> import tensorflow_data_validation as tfdv
 
@@ -40,13 +41,23 @@ class SAINT(tf.keras.Model):
     >>> diamonds_stats = tfdv.generate_statistics_from_dataframe(diamonds_df)
     >>> diamonds_schema = tfdv.infer_schema(statistics=diamonds_stats)
 
-    >>> saint_model = structured_transformers.models.SAINT(
+    >>> model = structured_transformers.models.SAINT(
             n_layers=6,
             num_heads=8
             embed_dim=512,
             hidden_dim512,
         )
-    >>> saint_model.build_from_schema_and_dataset(diamonds_schema, diamonds_ds)
+    >>> model.build_from_schema_and_dataset(diamonds_schema, diamonds_ds)
+
+    >>> diamonds_ds = diamonds_ds.shuffle(buffer_size=10000).batch(batch_size=512)
+    >>> diamonds_ds = model.apply_preprocessing(diamonds_ds, as_supervised=False)
+
+    >>> model.compile(
+            optimizer=tfa.optimizers.LAMB(),
+            pretraining_loss=structured_transformers.losses.VICReg(),
+            denoising_lambda=7.0,
+        )
+    >>> history = model.fit(diamonds_ds, epochs=20)
     ```
     """
 
@@ -80,21 +91,36 @@ class SAINT(tf.keras.Model):
             num_heads (int): _description_
             embed_dim (int): _description_
             hidden_dim (int): _description_
-            dropout (float, optional): _description_. Defaults to 0.1.
-            epsilon (float, optional): _description_. Defaults to 1e-6.
-            cutmix_probability (float, optional): _description_. Defaults to 0.5.
-            mixup_alpha (float, optional): _description_. Defaults to 0.5.
-            seed (int, optional): _description_. Defaults to 26.
-            embeddings_initializer (str, optional): _description_. Defaults to "uniform".
-            kernel_initializer (Union[str, Callable], optional): _description_. Defaults to "glorot_uniform".
-            bias_initializer (Union[str, Callable], optional): _description_. Defaults to "zeros".
-            embeddings_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
-            kernel_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
-            bias_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
-            activity_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
-            embeddings_constraint (Union[str, Callable], optional): _description_. Defaults to None.
-            kernel_constraint (Union[str, Callable], optional): _description_. Defaults to None.
-            bias_constraint (Union[str, Callable], optional): _description_. Defaults to None.
+            dropout (float, optional): _description_.
+                Defaults to 0.1.
+            epsilon (float, optional): _description_.
+                Defaults to 1e-6.
+            cutmix_probability (float, optional): _description_.
+                Defaults to 0.5.
+            mixup_alpha (float, optional): _description_.
+                Defaults to 0.5.
+            seed (int, optional): _description_.
+                Defaults to 26.
+            embeddings_initializer (str, optional): _description_.
+                Defaults to "uniform".
+            kernel_initializer (Union[str, Callable], optional): _description_.
+                Defaults to "glorot_uniform".
+            bias_initializer (Union[str, Callable], optional): _description_.
+                Defaults to "zeros".
+            embeddings_regularizer (Union[str, Callable], optional): _description_.
+                Defaults to None.
+            kernel_regularizer (Union[str, Callable], optional): _description_.
+                Defaults to None.
+            bias_regularizer (Union[str, Callable], optional): _description_.
+                Defaults to None.
+            activity_regularizer (Union[str, Callable], optional): _description_.
+                Defaults to None.
+            embeddings_constraint (Union[str, Callable], optional): _description_.
+                Defaults to None.
+            kernel_constraint (Union[str, Callable], optional): _description_.
+                Defaults to None.
+            bias_constraint (Union[str, Callable], optional): _description_.
+                Defaults to None.
         """
         super().__init__(**kwargs)
 
@@ -129,6 +155,7 @@ class SAINT(tf.keras.Model):
 
         # Data schema
         self._schema = None
+        self._built = None
 
     def build(self, input_shape: Union[tf.TensorShape, Iterable[tf.TensorShape]]):
         """_summary_
@@ -145,10 +172,12 @@ class SAINT(tf.keras.Model):
             constraint=self.embeddings_constraint,
         )
 
-        # Data augmentation layers
+        # Non-trainable layers
+        self.flatten = tf.keras.layers.Flatten()
         self.cutmix = CutMix(probability=self.probability, seed=self.seed)
         self.mixup = Mixup(alpha=self.alpha, seed=self.seed)
 
+        # Trainable layers
         # Transformer encoder
         self.saint = tf.keras.Sequential(
             [
@@ -170,10 +199,6 @@ class SAINT(tf.keras.Model):
                 for i in range(self.n_layers)
             ]
         )
-
-        # Flatten layer
-        self.flatten = tf.keras.layers.Flatten()
-
         # Projection head for input
         self.projection_head1 = FeedForwardNetwork(
             hidden_dim=self.embed_dim,
@@ -189,7 +214,6 @@ class SAINT(tf.keras.Model):
             bias_constraint=self.bias_constraint,
             name="projection_head1",
         )
-
         # Projection head for augmented input
         self.projection_head2 = FeedForwardNetwork(
             hidden_dim=self.embed_dim,
@@ -206,6 +230,7 @@ class SAINT(tf.keras.Model):
             name="projection_head2",
         )
 
+        # Inheritance
         super().build(input_shape)
 
     def build_from_schema_and_dataset(
@@ -294,16 +319,21 @@ class SAINT(tf.keras.Model):
                 ),
             )
 
+        self._built = True
         self._schema = schema
         dataset = self.apply_preprocessing(dataset)
 
         return dataset
 
-    def apply_preprocessing(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
+    def apply_preprocessing(
+        self, dataset: tf.data.Dataset, as_supervised: bool = True
+    ) -> tf.data.Dataset:
         """Apply preprocessing layers at inference/prediction step.
 
         Args:
             dataset (tf.data.Dataset): Prediction dataset.
+            as_supervised (bool): whether the input `dataset` has a 2-tuple structure
+                `(inputs, labels)` (True) or an only-features dict structure (False).
 
         Returns:
             tf.data.Dataset: Preprocessed dataset, ready for prediction.
@@ -317,8 +347,8 @@ class SAINT(tf.keras.Model):
                 """
             )
 
-        dataset = dataset.map(
-            lambda x, y: (
+        if as_supervised:
+            preprocess_fn = lambda x, y: (
                 {
                     feature.name: getattr(f"{feature.name}_preprocessing")(
                         x[feature.name]
@@ -327,7 +357,14 @@ class SAINT(tf.keras.Model):
                 },
                 y,
             )
-        )
+        else:
+            preprocess_fn = lambda x: {
+                feature.name: getattr(f"{feature.name}_preprocessing")(x[feature.name])
+                for feature in self._schema.feature
+            }
+
+        dataset = dataset.map(preprocess_fn)
+
         return dataset
 
     def call(
@@ -386,24 +423,18 @@ class SAINT(tf.keras.Model):
         return output
 
     def compile(
-        self,
-        pretraining_loss: tf.keras.losses.Loss,
-        denoising_lambda: float,
-        temperature: float,
-        **kwargs,
+        self, pretraining_loss: tf.keras.losses.Loss, denoising_lambda: float, **kwargs
     ):
         """_summary_
 
         Args:
             pretraining_loss (tf.keras.losses.Loss): _description_
             denoising_lambda (float): _description_
-            temperature (float): _description_
         """
         super().compile(**kwargs)
 
         self.pretraining_loss = pretraining_loss
         self.denoising_lambda = denoising_lambda
-        self.temperature = temperature
 
         self.pretraining_loss_loss_tracker = tf.keras.metrics.Mean(
             name="pretraining_loss_loss_tracker"
