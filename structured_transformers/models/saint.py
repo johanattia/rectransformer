@@ -8,8 +8,6 @@ import tensorflow as tf
 import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import schema_pb2
 
-from ..utils.schema import FeatureType, InputFeaturesSchema
-
 from ..layers import CutMix, Mixup
 from ..layers import FeedForwardNetwork, SAINTBlock
 
@@ -19,7 +17,6 @@ schema_utils = tfdv.utils.schema_util
 
 # TODO:
 # Explore complete tensor projection instead of for-loops for denoising
-# Replace custom (pydantic) schema with protobuf schema for easy TFX integration
 
 
 class SAINT(tf.keras.Model):
@@ -55,7 +52,6 @@ class SAINT(tf.keras.Model):
 
     def __init__(
         self,
-        input_schema: InputFeaturesSchema,
         n_layers: int,
         num_heads: int,
         embed_dim: int,
@@ -80,7 +76,6 @@ class SAINT(tf.keras.Model):
         """Model initilization.
 
         Args:
-            input_schema (InputFeaturesSchema): _description_
             n_layers (int): _description_
             num_heads (int): _description_
             embed_dim (int): _description_
@@ -102,10 +97,6 @@ class SAINT(tf.keras.Model):
             bias_constraint (Union[str, Callable], optional): _description_. Defaults to None.
         """
         super().__init__(**kwargs)
-
-        # Input schema
-        self.input_schema = input_schema
-        self._schema = None
 
         # Transformer Encoder hyperparameters
         self.n_layers = n_layers
@@ -136,6 +127,9 @@ class SAINT(tf.keras.Model):
         self.kernel_constraint = kernel_constraint
         self.bias_constraint = bias_constraint
 
+        # Data schema
+        self._schema = None
+
     def build(self, input_shape: Union[tf.TensorShape, Iterable[tf.TensorShape]]):
         """_summary_
 
@@ -151,27 +145,11 @@ class SAINT(tf.keras.Model):
             constraint=self.embeddings_constraint,
         )
 
-        # Data Augmentation layers
+        # Data augmentation layers
         self.cutmix = CutMix(probability=self.probability, seed=self.seed)
         self.mixup = Mixup(alpha=self.alpha, seed=self.seed)
 
-        # Tabular Embedding layer
-        # self.embedding = StructuredEmbedding(
-        #    input_schema=self.input_schema,
-        #    embed_dim=self.embed_dim,
-        #    embeddings_initializer=self.embeddings_initializer,
-        #    kernel_initializer=self.kernel_initializer,
-        #    bias_initializer=self.bias_initializer,
-        #    embeddings_regularizer=self.embeddings_regularizer,
-        #    kernel_regularizer=self.kernel_regularizer,
-        #    bias_regularizer=self.bias_regularizer,
-        #    activity_regularizer=self.activity_regularizer,
-        #    embeddings_constraint=self.embeddings_constraint,
-        #    kernel_constraint=self.kernel_constraint,
-        #    bias_constraint=self.bias_constraint,
-        # )
-
-        # Transformer Encoder
+        # Transformer encoder
         self.saint = tf.keras.Sequential(
             [
                 SAINTBlock(
@@ -195,29 +173,6 @@ class SAINT(tf.keras.Model):
 
         # Flatten layer
         self.flatten = tf.keras.layers.Flatten()
-
-        # Denoising layers
-        # for feature in self.input_schema.ordered_features:
-        #    setattr(
-        #        self,
-        #        f"{feature.name}_denoising",
-        #        MLP(
-        #            hidden_dim=self.embed_dim,
-        #            output_dim=feature.feature_dimension,
-        #            hidden_activation=tf.nn.relu,
-        #            output_activation=tf.nn.softmax
-        #            if feature.feature_type is FeatureType.CATEGORICAL
-        #            else None,
-        #            kernel_initializer=self.kernel_initializer,
-        #            bias_initializer=self.bias_initializer,
-        #            kernel_regularizer=self.kernel_regularizer,
-        #            bias_regularizer=self.bias_regularizer,
-        #            activity_regularizer=self.activity_regularizer,
-        #            kernel_constraint=self.kernel_constraint,
-        #            bias_constraint=self.bias_constraint,
-        #            name=f"{feature.name}_denoising",
-        #        ),
-        #    )
 
         # Projection head for input
         self.projection_head1 = FeedForwardNetwork(
@@ -268,26 +223,80 @@ class SAINT(tf.keras.Model):
             tf.data.Dataset: _description_
         """
         for feature in schema.feature:
-
-            if feature.type == schema_pb2.INT:
-                feature.int_domain.is_categorical = True
-                preprocessing_layer = tf.keras.layers.IntegerLookup()
-            elif (
-                schema_utils.is_categorical_feature(feature)
-                and feature.type == schema_pb2.BYTES
-            ):
-                preprocessing_layer = tf.keras.layers.StringLookup()
-            else:
-                preprocessing_layer = tf.keras.layers.Normalization()
-
             feature_dataset = dataset.map(lambda x, y: x[feature.name])
-            preprocessing_layer.adapt(feature_dataset)
+
+            if feature.type == schema_pb2.FLOAT:
+                preprocessing_layer = tf.keras.layers.Normalization()
+                preprocessing_layer.adapt(feature_dataset)
+
+                output_dim = 1
+                output_activation = None
+
+                setattr(
+                    self,
+                    f"{feature.name}_embedding",
+                    tf.keras.layers.Dense(
+                        units=self.embed_dim,
+                        activation=tf.nn.relu,
+                        use_bias=True,
+                        kernel_initializer=self.kernel_initializer,
+                        bias_initializer=self.bias_initializer,
+                        kernel_regularizer=self.kernel_regularizer,
+                        bias_regularizer=self.bias_regularizer,
+                        activity_regularizer=self.activity_regularizer,
+                        kernel_constraint=self.kernel_constraint,
+                        bias_constraint=self.bias_constraint,
+                        name=f"{feature.name}_embedding",
+                    ),
+                )
+            else:
+                if feature.type == schema_pb2.INT:
+                    feature.int_domain.is_categorical = True
+                    preprocessing_layer = tf.keras.layers.IntegerLookup()
+                elif feature.type == schema_pb2.BYTES:
+                    preprocessing_layer = tf.keras.layers.StringLookup()
+
+                preprocessing_layer.adapt(feature_dataset)
+
+                output_dim = preprocessing_layer.vocabulary_size()
+                output_activation = tf.nn.softmax
+
+                setattr(
+                    self,
+                    f"{feature.name}_embedding",
+                    tf.keras.layers.Embedding(
+                        input_dim=preprocessing_layer.vocabulary_size(),
+                        output_dim=self.embed_dim,
+                        embeddings_initializer=self.embeddings_initializer,
+                        embeddings_regularizer=self.embeddings_regularizer,
+                        embeddings_constraint=self.embeddings_constraint,
+                        name=f"{feature.name}_embedding",
+                    ),
+                )
 
             setattr(f"{feature.name}_preprocessing", preprocessing_layer)
+            setattr(
+                self,
+                f"{feature.name}_denoising",
+                FeedForwardNetwork(
+                    hidden_dim=self.embed_dim,
+                    output_dim=output_dim,
+                    hidden_activation=tf.nn.relu,
+                    output_activation=output_activation,
+                    kernel_initializer=self.kernel_initializer,
+                    bias_initializer=self.bias_initializer,
+                    kernel_regularizer=self.kernel_regularizer,
+                    bias_regularizer=self.bias_regularizer,
+                    activity_regularizer=self.activity_regularizer,
+                    kernel_constraint=self.kernel_constraint,
+                    bias_constraint=self.bias_constraint,
+                    name=f"{feature.name}_denoising",
+                ),
+            )
 
         self._schema = schema
-
         dataset = self.apply_preprocessing(dataset)
+
         return dataset
 
     def apply_preprocessing(self, dataset: tf.data.Dataset) -> tf.data.Dataset:
@@ -312,7 +321,7 @@ class SAINT(tf.keras.Model):
             lambda x, y: (
                 {
                     feature.name: getattr(f"{feature.name}_preprocessing")(
-                        x[f"{feature.name}"]
+                        x[feature.name]
                     )
                     for feature in self._schema.feature
                 },
@@ -339,9 +348,25 @@ class SAINT(tf.keras.Model):
         """
         # Embedding layer
         if augment:
-            features_embeddings = self.mixup(self.embedding(self.cutmix(inputs)))
+            augmented_inputs = self.cutmix(inputs)
+            features_embeddings = tf.stack(
+                [
+                    getattr(self, f"{feature.name}_embedding")(
+                        augmented_inputs[feature.name]
+                    )
+                    for feature in self._schema.feature
+                ],
+                axis=1,
+            )
+            features_embeddings = self.mixup(features_embeddings)
         else:
-            features_embeddings = self.embedding(inputs)
+            features_embeddings = tf.stack(
+                [
+                    getattr(self, f"{feature.name}_embedding")(inputs[feature.name])
+                    for feature in self._schema.feature
+                ],
+                axis=1,
+            )
 
         # Concat embeddings
         batch_size = tf.shape(features_embeddings)[0]
@@ -385,7 +410,7 @@ class SAINT(tf.keras.Model):
         )
         self.denoising_tracker = {
             feature.name: tf.keras.metrics.Mean(name=f"{feature.name}_tracker")
-            for feature in self.input_schema.ordered_features
+            for feature in self._schema.feature
         }
 
     def train_step(self, data: Union[tf.Tensor, Dict[str, tf.Tensor]]):
@@ -421,7 +446,7 @@ class SAINT(tf.keras.Model):
             # Denoising losses
             denoising_outputs = {
                 feature.name: getattr(self, f"{feature.name}_denoising")(features2)
-                for feature in self.input_schema.ordered_features
+                for feature in self._schema.feature
             }
             denoising_loss = self.denoising_loss(inputs=x, outputs=denoising_outputs)
 
@@ -475,9 +500,9 @@ class SAINT(tf.keras.Model):
             tf.Tensor: _description_
         """
         loss = 0
-        for feature in self.input_schema.ordered_features:
+        for feature in self._schema.feature:
 
-            if feature.feature_type is FeatureType.CATEGORICAL:
+            if schema_utils.is_categorical_feature(feature):
                 feature_loss = tf.keras.losses.sparse_categorical_crossentropy(
                     inputs[feature.name], outputs[feature.name], from_logits=True
                 )
