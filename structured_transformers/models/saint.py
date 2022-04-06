@@ -2,7 +2,6 @@
 
 from typing import Callable, Dict, Iterable, Union
 
-
 import tensorflow as tf
 
 import tensorflow_data_validation as tfdv
@@ -16,7 +15,7 @@ schema_utils = tfdv.utils.schema_util
 
 
 # TODO:
-# Explore complete tensor projection instead of for-loops for denoising
+# Explore for optimization : tf.nest package + tf.unstack
 
 
 class SAINT(tf.keras.Model):

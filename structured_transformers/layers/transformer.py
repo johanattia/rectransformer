@@ -219,7 +219,7 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         return cls(**config)
 
     def get_config(self) -> dict:
-        base_config = super(SelfAttentionBlock, self).get_config()
+        base_config = super().get_config()
         config = {
             "num_heads": self.num_heads,
             "embed_dim": self.embed_dim,
