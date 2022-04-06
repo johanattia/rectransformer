@@ -234,7 +234,10 @@ class SAINT(tf.keras.Model):
         super().build(input_shape)
 
     def build_from_schema_and_dataset(
-        self, schema: schema_pb2.Schema, dataset: tf.data.Dataset
+        self,
+        schema: schema_pb2.Schema,
+        dataset: tf.data.Dataset,
+        as_supervised: bool = False,
     ) -> tf.data.Dataset:
         """Perform preprocessing and build embeddings layers from protobuf schema and
         training dataset.
@@ -243,12 +246,18 @@ class SAINT(tf.keras.Model):
             schema (schema_pb2.Schema): Protocol buffers schema of training data.
             dataset (tf.data.Dataset): Training dataset. Samples should be formated as dict
                 following the protobuf data schema.
+            as_supervised (bool): whether the input `dataset` has a 2-tuple structure
+                `(inputs, labels)` (True) or an only-features dict structure (False).
+                Defaults to False.
 
         Returns:
             tf.data.Dataset: _description_
         """
         for feature in schema.feature:
-            feature_dataset = dataset.map(lambda x, y: x[feature.name])
+            if as_supervised:
+                feature_dataset = dataset.map(lambda x, y: x[feature.name])
+            else:
+                feature_dataset = dataset.map(lambda x: x[feature.name])
 
             if feature.type == schema_pb2.FLOAT:
                 preprocessing_layer = tf.keras.layers.Normalization()
@@ -321,12 +330,13 @@ class SAINT(tf.keras.Model):
 
         self._built = True
         self._schema = schema
-        dataset = self.apply_preprocessing(dataset)
+
+        dataset = self.apply_preprocessing(dataset, as_supervised)
 
         return dataset
 
     def apply_preprocessing(
-        self, dataset: tf.data.Dataset, as_supervised: bool = True
+        self, dataset: tf.data.Dataset, as_supervised: bool = False
     ) -> tf.data.Dataset:
         """Apply preprocessing layers at inference/prediction step.
 
@@ -334,6 +344,7 @@ class SAINT(tf.keras.Model):
             dataset (tf.data.Dataset): Prediction dataset.
             as_supervised (bool): whether the input `dataset` has a 2-tuple structure
                 `(inputs, labels)` (True) or an only-features dict structure (False).
+                Defaults to False.
 
         Returns:
             tf.data.Dataset: Preprocessed dataset, ready for prediction.
@@ -346,7 +357,6 @@ class SAINT(tf.keras.Model):
                 or documentation.
                 """
             )
-
         if as_supervised:
             preprocess_fn = lambda x, y: (
                 {
