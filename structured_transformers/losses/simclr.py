@@ -9,7 +9,9 @@ LARGE_NUM = 1e9
 
 
 class SimCLR(tf.keras.losses.Loss):
-    """SimCLR loss for self-supervised learning. Official reference from Google:
+    """SimCLR loss implementation for self-supervised learning.
+
+    Official references from Google:
     * Article: `Big Self-Supervised Models are Strong Semi-Supervised Learners` (https://arxiv.org/abs/2006.10029)
     * Code: https://github.com/google-research/simclr/blob/master/tf2/objective.py
 
