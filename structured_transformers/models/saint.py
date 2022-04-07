@@ -307,7 +307,7 @@ class SAINT(tf.keras.Model):
                     ),
                 )
 
-            setattr(f"{feature.name}_preprocessing", preprocessing_layer)
+            setattr(self, f"{feature.name}_preprocessing", preprocessing_layer)
             setattr(
                 self,
                 f"{feature.name}_denoising",
@@ -359,7 +359,7 @@ class SAINT(tf.keras.Model):
         if as_supervised:
             preprocess_fn = lambda x, y: (
                 {
-                    feature.name: getattr(f"{feature.name}_preprocessing")(
+                    feature.name: getattr(self, f"{feature.name}_preprocessing")(
                         x[feature.name]
                     )
                     for feature in self._schema.feature
@@ -368,7 +368,9 @@ class SAINT(tf.keras.Model):
             )
         else:
             preprocess_fn = lambda x: {
-                feature.name: getattr(f"{feature.name}_preprocessing")(x[feature.name])
+                feature.name: getattr(self, f"{feature.name}_preprocessing")(
+                    x[feature.name]
+                )
                 for feature in self._schema.feature
             }
 
@@ -469,15 +471,15 @@ class SAINT(tf.keras.Model):
 
         with tf.GradientTape() as tape:
             # Forward
-            features1 = self(x, training=True)
-            features1 = self.flatten(features1["full_output"])
+            output1 = self(x, training=True)  # augment=True
+            output1 = self.flatten(output1["full_output"])
 
-            features2 = self(x, training=True, augment=True)
-            features2 = self.flatten(features2["full_output"])
+            output2 = self(x, training=True, augment=True)
+            output2 = self.flatten(output2["full_output"])
 
             # Contrastive loss
-            projection1 = self.projection_head1(features1)
-            projection2 = self.projection_head2(features2)
+            projection1 = self.projection_head1(output1)
+            projection2 = self.projection_head2(output2)
 
             pretraining_loss = self.pretraining_loss(
                 projection1=projection1, projection2=projection2
@@ -485,7 +487,7 @@ class SAINT(tf.keras.Model):
 
             # Denoising losses
             denoising_outputs = {
-                feature.name: getattr(self, f"{feature.name}_denoising")(features2)
+                feature.name: getattr(self, f"{feature.name}_denoising")(output2)
                 for feature in self._schema.feature
             }
             denoising_loss = self.denoising_loss(inputs=x, outputs=denoising_outputs)
