@@ -361,3 +361,93 @@ def SAINTBlock(
             ),
         ]
     )
+
+
+def TransformerEncoder(
+    num_blocks: int,
+    num_heads: int,
+    embed_dim: int,
+    hidden_dim: int,
+    dropout: float = 0.1,
+    epsilon: float = 1e-6,
+    intersample_attention: bool = True,
+    top_blocks_output: int = None,
+    kernel_initializer: Union[str, Callable] = "glorot_uniform",
+    bias_initializer: Union[str, Callable] = "zeros",
+    kernel_regularizer: Union[str, Callable] = None,
+    bias_regularizer: Union[str, Callable] = None,
+    activity_regularizer: Union[str, Callable] = None,
+    kernel_constraint: Union[str, Callable] = None,
+    bias_constraint: Union[str, Callable] = None,
+    **kwargs,
+) -> tf.keras.Model:
+    """_summary_
+
+    Args:
+        num_blocks (int): _description_
+        num_heads (int): _description_
+        embed_dim (int): _description_
+        hidden_dim (int): _description_
+        dropout (float, optional): _description_. Defaults to 0.1.
+        epsilon (float, optional): _description_. Defaults to 1e-6.
+        intersample_attention (bool, optional): _description_. Defaults to True.
+        top_blocks_output (int, optional): _description_. Defaults to None.
+        kernel_initializer (Union[str, Callable], optional): _description_. Defaults to "glorot_uniform".
+        bias_initializer (Union[str, Callable], optional): _description_. Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
+        bias_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
+        activity_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): _description_. Defaults to None.
+        bias_constraint (Union[str, Callable], optional): _description_. Defaults to None.
+
+    Returns:
+        tf.keras.Model: _description_
+    """
+    if top_blocks_output is not None:
+        output: Dict[str, tf.Tensor] = {}
+    else:
+        output: tf.Tensor = None
+
+    weights_parameters = dict(
+        kernel_initializer=kernel_initializer,
+        bias_initializer=bias_initializer,
+        kernel_regularizer=kernel_regularizer,
+        bias_regularizer=bias_regularizer,
+        activity_regularizer=activity_regularizer,
+        kernel_constraint=kernel_constraint,
+        bias_constraint=bias_constraint,
+    )
+    name = kwargs.pop("name", "transformer_block")
+
+    x = tf.keras.Input(shape=(None, embed_dim), dtype=tf.float32)
+
+    for i in range(1, num_blocks + 1):
+        x = SelfAttentionBlock(
+            num_heads=num_heads,
+            embed_dim=embed_dim,
+            hidden_dim=hidden_dim,
+            dropout=dropout,
+            epsilon=epsilon,
+            name=name + str(i),
+            **weights_parameters,
+            **kwargs,
+        )(x)
+
+        if intersample_attention:
+            x = IntersampleAttentionBlock(
+                num_heads=num_heads,
+                embed_dim=embed_dim,
+                hidden_dim=hidden_dim,
+                dropout=dropout,
+                epsilon=epsilon,
+                name=name + "_intersample" + str(i),
+                **weights_parameters,
+                **kwargs,
+            )(x)
+
+        if isinstance(top_blocks_output, int) and (i >= num_blocks - top_blocks_output):
+            output[name + str(i)] = x
+        else:
+            output = x
+
+    return tf.keras.Model(inputs=x, outputs=output, name=name)
