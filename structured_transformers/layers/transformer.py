@@ -285,6 +285,7 @@ class IntersampleAttentionBlock(SelfAttentionBlock):
             attention_mask=attention_mask,
         )
         output = tf.reshape(attention_output, (batch, n_features, feature_dim))
+
         return output
 
 
@@ -398,11 +399,6 @@ def TransformerEncoder(
     Returns:
         tf.keras.Model: _description_
     """
-    if top_blocks_output is not None:
-        output: Dict[str, tf.Tensor] = {}
-    else:
-        output: tf.Tensor = None
-
     weights_parameters = dict(
         kernel_initializer=kernel_initializer,
         bias_initializer=bias_initializer,
@@ -414,6 +410,7 @@ def TransformerEncoder(
     )
     name = kwargs.pop("name", "transformer")
 
+    output: Dict[str, tf.Tensor] = {}
     x = tf.keras.Input(shape=(None, embed_dim), dtype=tf.float32)
 
     for i in range(1, num_blocks + 1):
@@ -440,9 +437,14 @@ def TransformerEncoder(
                 **kwargs,
             )(x)
 
-        if isinstance(top_blocks_output, int) and (i >= num_blocks - top_blocks_output):
+        if isinstance(top_blocks_output is not None) and (
+            i >= num_blocks - top_blocks_output
+        ):
             output[name + str(i)] = x
-        else:
-            output = x
+        elif (top_blocks_output is None) and (i == num_blocks):
+            output = {
+                "full_output": x,
+                "cls_output": x[:, 0, :],
+            }
 
     return tf.keras.Model(inputs=x, outputs=output, name=name)
