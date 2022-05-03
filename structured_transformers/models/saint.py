@@ -8,7 +8,7 @@ import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import schema_pb2
 
 from ..layers import CutMix, Mixup
-from ..layers import FeedForwardNetwork, SAINTBlock
+from ..layers import FeedForwardNetwork, TransformerEncoder
 
 
 schema_utils = tfdv.utils.schema_util
@@ -41,8 +41,8 @@ class SAINT(tf.keras.Model):
     >>> diamonds_schema = tfdv.infer_schema(statistics=diamonds_stats)
 
     >>> model = structured_transformers.models.SAINT(
-            n_layers=6,
-            num_heads=8
+            num_blocks=6,
+            num_heads=8,
             embed_dim=512,
             hidden_dim512,
         )
@@ -62,12 +62,14 @@ class SAINT(tf.keras.Model):
 
     def __init__(
         self,
-        n_layers: int,
+        num_blocks: int,
         num_heads: int,
         embed_dim: int,
         hidden_dim: int,
         dropout: float = 0.1,
         epsilon: float = 1e-6,
+        intersample_attention: bool = True,
+        top_blocks_output: int = None,
         cutmix_probability: float = 0.5,
         mixup_alpha: float = 0.5,
         seed: int = 26,
@@ -83,74 +85,65 @@ class SAINT(tf.keras.Model):
         bias_constraint: Union[str, Callable] = None,
         **kwargs,
     ):
-        """Model initilization.
+        """Instantiate Self-Attention and Intersample Attention Transformer with
+        self-supervised pre-training procedure.
 
         Args:
-            n_layers (int): _description_
+            num_blocks (int): _description_
             num_heads (int): _description_
             embed_dim (int): _description_
             hidden_dim (int): _description_
-            dropout (float, optional): _description_.
-                Defaults to 0.1.
-            epsilon (float, optional): _description_.
-                Defaults to 1e-6.
-            cutmix_probability (float, optional): _description_.
-                Defaults to 0.5.
-            mixup_alpha (float, optional): _description_.
-                Defaults to 0.5.
-            seed (int, optional): _description_.
-                Defaults to 26.
-            embeddings_initializer (str, optional): _description_.
-                Defaults to "uniform".
-            kernel_initializer (Union[str, Callable], optional): _description_.
-                Defaults to "glorot_uniform".
-            bias_initializer (Union[str, Callable], optional): _description_.
-                Defaults to "zeros".
-            embeddings_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            kernel_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            bias_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            activity_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            embeddings_constraint (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            kernel_constraint (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            bias_constraint (Union[str, Callable], optional): _description_.
-                Defaults to None.
+            dropout (float, optional): _description_. Defaults to 0.1.
+            epsilon (float, optional): _description_. Defaults to 1e-6.
+            intersample_attention (bool, optional): _description_. Defaults to True.
+            top_blocks_output (int, optional): _description_. Defaults to None.
+            cutmix_probability (float, optional): _description_. Defaults to 0.5.
+            mixup_alpha (float, optional): _description_. Defaults to 0.5.
+            seed (int, optional): _description_. Defaults to 26.
+            embeddings_initializer (str, optional): _description_. Defaults to "uniform".
+            kernel_initializer (Union[str, Callable], optional): _description_. Defaults to "glorot_uniform".
+            bias_initializer (Union[str, Callable], optional): _description_. Defaults to "zeros".
+            embeddings_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
+            kernel_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
+            bias_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
+            activity_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
+            embeddings_constraint (Union[str, Callable], optional): _description_. Defaults to None.
+            kernel_constraint (Union[str, Callable], optional): _description_. Defaults to None.
+            bias_constraint (Union[str, Callable], optional): _description_. Defaults to None.
         """
         super().__init__(**kwargs)
 
         # Transformer Encoder hyperparameters
-        self.n_layers = n_layers
-
+        self.num_blocks = num_blocks
         self.num_heads = num_heads
         self.embed_dim = embed_dim
         self.hidden_dim = hidden_dim
-
         self.dropout = dropout
         self.epsilon = epsilon
+        self.intersample_attention = intersample_attention
+        self.top_blocks_output = top_blocks_output
 
         # Data augmentation hyperparameters
         self.cutmix_probability = cutmix_probability
-        self.seed = seed
         self.mixup_alpha = mixup_alpha
+        self.seed = seed
 
         # Trainable weights
-        self.embeddings_initializer = embeddings_initializer
-        self.kernel_initializer = kernel_initializer
-        self.bias_initializer = bias_initializer
-
-        self.embeddings_regularizer = embeddings_regularizer
-        self.kernel_regularizer = kernel_regularizer
-        self.bias_regularizer = bias_regularizer
-        self.activity_regularizer = activity_regularizer
-
-        self.embeddings_constraint = embeddings_constraint
-        self.kernel_constraint = kernel_constraint
-        self.bias_constraint = bias_constraint
+        self.embeddings_parameters = dict(
+            embeddings_initializer=embeddings_initializer,
+            embeddings_regularizer=embeddings_regularizer,
+            activity_regularizer=activity_regularizer,
+            embeddings_constraint=embeddings_constraint,
+        )
+        self.weights_parameters = dict(
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
+            kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
+        )
 
         # Data schema
         self._schema = None
@@ -166,37 +159,28 @@ class SAINT(tf.keras.Model):
         self._CLS = self.add_weight(
             name="CLS",
             shape=(1, 1, self.embed_dim),
-            initializer=self.embeddings_initializer,
-            regularizer=self.embeddings_regularizer,
-            constraint=self.embeddings_constraint,
+            initializer=self.embeddings_parameters["embeddings_initializer"],
+            regularizer=self.embeddings_parameters["embeddings_regularizer"],
+            constraint=self.embeddings_parameters["embeddings_constraint"],
         )
 
         # Non-trainable layers
         self.flatten = tf.keras.layers.Flatten()
-        self.cutmix = CutMix(probability=self.probability, seed=self.seed)
-        self.mixup = Mixup(alpha=self.alpha, seed=self.seed)
+        self.cutmix = CutMix(probability=self.cutmix_probability, seed=self.seed)
+        self.mixup = Mixup(alpha=self.mixup_alpha, seed=self.seed)
 
         # Trainable layers
         # Transformer encoder
-        self.saint = tf.keras.Sequential(
-            [
-                SAINTBlock(
-                    num_heads=self.num_heads,
-                    embed_dim=self.embed_dim,
-                    hidden_dim=self.hidden_dim,
-                    dropout=self.dropout,
-                    epsilon=self.epsilon,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    activity_regularizer=self.activity_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
-                    name=f"SAINT_layer_{i}",
-                )
-                for i in range(self.n_layers)
-            ]
+        self.saint = TransformerEncoder(
+            num_blocks=self.num_blocks,
+            num_heads=self.num_heads,
+            embed_dim=self.embed_dim,
+            hidden_dim=self.hidden_dim,
+            dropout=self.dropout,
+            epsilon=self.epsilon,
+            intersample_attention=self.intersample_attention,
+            top_blocks_output=self.top_blocks_output,
+            **self.weights_parameters,
         )
         # Projection head for input
         self.projection_head1 = FeedForwardNetwork(
@@ -204,13 +188,7 @@ class SAINT(tf.keras.Model):
             output_dim=self.embed_dim,
             hidden_activation=tf.nn.relu,
             output_activation=None,
-            kernel_initializer=self.kernel_initializer,
-            bias_initializer=self.bias_initializer,
-            kernel_regularizer=self.kernel_regularizer,
-            bias_regularizer=self.bias_regularizer,
-            activity_regularizer=self.activity_regularizer,
-            kernel_constraint=self.kernel_constraint,
-            bias_constraint=self.bias_constraint,
+            **self.weights_parameters,
             name="projection_head1",
         )
         # Projection head for augmented input
@@ -219,13 +197,7 @@ class SAINT(tf.keras.Model):
             output_dim=self.embed_dim,
             hidden_activation=tf.nn.relu,
             output_activation=None,
-            kernel_initializer=self.kernel_initializer,
-            bias_initializer=self.bias_initializer,
-            kernel_regularizer=self.kernel_regularizer,
-            bias_regularizer=self.bias_regularizer,
-            activity_regularizer=self.activity_regularizer,
-            kernel_constraint=self.kernel_constraint,
-            bias_constraint=self.bias_constraint,
+            **self.weights_parameters,
             name="projection_head2",
         )
 
@@ -261,9 +233,7 @@ class SAINT(tf.keras.Model):
             if feature.type == schema_pb2.FLOAT:
                 preprocessing_layer = tf.keras.layers.Normalization()
                 preprocessing_layer.adapt(feature_dataset)
-
                 output_dim = 1
-                output_activation = None
 
                 setattr(
                     self,
@@ -272,13 +242,7 @@ class SAINT(tf.keras.Model):
                         units=self.embed_dim,
                         activation=tf.nn.relu,
                         use_bias=True,
-                        kernel_initializer=self.kernel_initializer,
-                        bias_initializer=self.bias_initializer,
-                        kernel_regularizer=self.kernel_regularizer,
-                        bias_regularizer=self.bias_regularizer,
-                        activity_regularizer=self.activity_regularizer,
-                        kernel_constraint=self.kernel_constraint,
-                        bias_constraint=self.bias_constraint,
+                        **self.weights_parameters,
                         name=f"{feature.name}_embedding",
                     ),
                 )
@@ -290,9 +254,7 @@ class SAINT(tf.keras.Model):
                     preprocessing_layer = tf.keras.layers.StringLookup()
 
                 preprocessing_layer.adapt(feature_dataset)
-
                 output_dim = preprocessing_layer.vocabulary_size()
-                output_activation = tf.nn.softmax
 
                 setattr(
                     self,
@@ -300,9 +262,7 @@ class SAINT(tf.keras.Model):
                     tf.keras.layers.Embedding(
                         input_dim=preprocessing_layer.vocabulary_size(),
                         output_dim=self.embed_dim,
-                        embeddings_initializer=self.embeddings_initializer,
-                        embeddings_regularizer=self.embeddings_regularizer,
-                        embeddings_constraint=self.embeddings_constraint,
+                        **self.embeddings_parameters,
                         name=f"{feature.name}_embedding",
                     ),
                 )
@@ -315,14 +275,7 @@ class SAINT(tf.keras.Model):
                     hidden_dim=self.embed_dim,
                     output_dim=output_dim,
                     hidden_activation=tf.nn.relu,
-                    output_activation=output_activation,
-                    kernel_initializer=self.kernel_initializer,
-                    bias_initializer=self.bias_initializer,
-                    kernel_regularizer=self.kernel_regularizer,
-                    bias_regularizer=self.bias_regularizer,
-                    activity_regularizer=self.activity_regularizer,
-                    kernel_constraint=self.kernel_constraint,
-                    bias_constraint=self.bias_constraint,
+                    **self.weights_parameters,
                     name=f"{feature.name}_denoising",
                 ),
             )
@@ -424,13 +377,7 @@ class SAINT(tf.keras.Model):
         embeddings = tf.concat([cls_embeddings, features_embeddings], axis=1)
 
         # SAINT
-        contextual_output = self.saint(embeddings, training)
-
-        # Output
-        output = {
-            "full_output": contextual_output,
-            "cls_output": contextual_output[:, 0, :],
-        }
+        output = self.saint(embeddings, training)
         return output
 
     def compile(
