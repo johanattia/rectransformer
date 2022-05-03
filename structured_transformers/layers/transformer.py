@@ -39,32 +39,29 @@ def FeedForwardNetwork(
     Returns:
         tf.keras.Model: [description]
     """
+    weights_parameters = dict(
+        kernel_initializer=kernel_initializer,
+        bias_initializer=bias_initializer,
+        kernel_regularizer=kernel_regularizer,
+        bias_regularizer=bias_regularizer,
+        activity_regularizer=activity_regularizer,
+        kernel_constraint=kernel_constraint,
+        bias_constraint=bias_constraint,
+    )
     return tf.keras.Sequential(
         [
             tf.keras.layers.Dense(
                 units=hidden_dim,
                 activation=hidden_activation,
                 use_bias=True,
-                kernel_initializer=kernel_initializer,
-                bias_initializer=bias_initializer,
-                kernel_regularizer=kernel_regularizer,
-                bias_regularizer=bias_regularizer,
-                activity_regularizer=activity_regularizer,
-                kernel_constraint=kernel_constraint,
-                bias_constraint=bias_constraint,
+                **weights_parameters,
                 **kwargs,
             ),
             tf.keras.layers.Dense(
                 units=output_dim,
                 activation=output_activation,
                 use_bias=True,
-                kernel_initializer=kernel_initializer,
-                bias_initializer=bias_initializer,
-                kernel_regularizer=kernel_regularizer,
-                bias_regularizer=bias_regularizer,
-                activity_regularizer=activity_regularizer,
-                kernel_constraint=kernel_constraint,
-                bias_constraint=bias_constraint,
+                **weights_parameters,
                 **kwargs,
             ),
         ]
@@ -118,11 +115,9 @@ class SelfAttentionBlock(tf.keras.layers.Layer):
         # Trainable weights
         self.kernel_initializer = tf.keras.initializers.get(kernel_initializer)
         self.bias_initializer = tf.keras.initializers.get(bias_initializer)
-
         self.kernel_regularizer = tf.keras.regularizers.get(kernel_regularizer)
         self.bias_regularizer = tf.keras.regularizers.get(bias_regularizer)
         self.activity_regularizer = tf.keras.regularizers.get(activity_regularizer)
-
         self.kernel_constraint = tf.keras.constraints.get(kernel_constraint)
         self.bias_constraint = tf.keras.constraints.get(bias_constraint)
 
@@ -280,8 +275,8 @@ class IntersampleAttentionBlock(SelfAttentionBlock):
         Returns:
             tf.Tensor: [description]
         """
-        batch, n_samples, feature_dim = tf.shape(inputs)
-        reshaped_inputs = tf.reshape(inputs, (1, batch, n_samples * feature_dim))
+        batch, n_features, feature_dim = tf.shape(inputs)
+        reshaped_inputs = tf.reshape(inputs, (1, batch, n_features * feature_dim))
 
         attention_output = self.attention_layer(
             reshaped_inputs,
@@ -289,7 +284,7 @@ class IntersampleAttentionBlock(SelfAttentionBlock):
             training=training,
             attention_mask=attention_mask,
         )
-        output = tf.reshape(attention_output, (batch, n_samples, feature_dim))
+        output = tf.reshape(attention_output, (batch, n_features, feature_dim))
         return output
 
 
@@ -417,7 +412,7 @@ def TransformerEncoder(
         kernel_constraint=kernel_constraint,
         bias_constraint=bias_constraint,
     )
-    name = kwargs.pop("name", "transformer_block")
+    name = kwargs.pop("name", "transformer")
 
     x = tf.keras.Input(shape=(None, embed_dim), dtype=tf.float32)
 
@@ -428,7 +423,7 @@ def TransformerEncoder(
             hidden_dim=hidden_dim,
             dropout=dropout,
             epsilon=epsilon,
-            name=name + str(i),
+            name=name + "_attention_block" + str(i),
             **weights_parameters,
             **kwargs,
         )(x)
@@ -440,7 +435,7 @@ def TransformerEncoder(
                 hidden_dim=hidden_dim,
                 dropout=dropout,
                 epsilon=epsilon,
-                name=name + "_intersample" + str(i),
+                name=name + "_intersample_block" + str(i),
                 **weights_parameters,
                 **kwargs,
             )(x)
