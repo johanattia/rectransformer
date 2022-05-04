@@ -7,8 +7,10 @@ import tensorflow as tf
 import tensorflow_data_validation as tfdv
 from tensorflow_metadata.proto.v0 import schema_pb2
 
+from .transformer import TransformerEncoder
+
 from ..layers import CutMix, Mixup
-from ..layers import FeedForwardNetwork, TransformerEncoder
+from ..layers import FeedForwardNetwork
 
 
 schema_utils = tfdv.utils.schema_util

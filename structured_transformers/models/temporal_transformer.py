@@ -3,5 +3,5 @@
 import tensorflow as tf
 
 
-class TempoeralFusionTransformer(tf.keras.Model):
+class TemporalFusionTransformer(tf.keras.Model):
     pass
