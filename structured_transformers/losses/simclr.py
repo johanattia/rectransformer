@@ -8,7 +8,7 @@ import tensorflow as tf
 LARGE_NUM = 1e9
 
 
-class SimCLR(tf.keras.losses.Loss):
+class SimCLRLoss(tf.keras.losses.Loss):
     """SimCLR loss implementation for self-supervised learning.
 
     Official references from Google:

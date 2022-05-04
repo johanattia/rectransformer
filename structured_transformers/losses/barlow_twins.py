@@ -3,5 +3,5 @@
 import tensorflow as tf
 
 
-class BarlowTwins(tf.keras.losses.Loss):
+class BarlowTwinsLoss(tf.keras.losses.Loss):
     pass

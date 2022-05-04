@@ -391,7 +391,7 @@ def TransformerEncoder(
         if isinstance(top_blocks_output is not None) and (
             idx >= num_blocks - top_blocks_output
         ):
-            output[name + str(idx)] = x
+            output[name + "_block" + str(idx)] = x
         elif (top_blocks_output is None) and (idx == num_blocks):
             output = {
                 "full_output": x,

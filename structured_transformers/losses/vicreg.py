@@ -3,5 +3,5 @@
 import tensorflow as tf
 
 
-class VICReg(tf.keras.losses.Loss):
+class VICRegLoss(tf.keras.losses.Loss):
     pass
