@@ -1,4 +1,4 @@
-"""Self-supervised algorithm: Barlow Twins with TensorFlow"""
+"""Self-supervised Barlow Twins objective with TensorFlow"""
 
 import tensorflow as tf
 

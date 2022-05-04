@@ -31,17 +31,28 @@ def TransformerEncoder(
         num_heads (int): _description_
         embed_dim (int): _description_
         hidden_dim (int): _description_
-        dropout (float, optional): _description_. Defaults to 0.1.
-        epsilon (float, optional): _description_. Defaults to 1e-6.
-        intersample_attention (bool, optional): _description_. Defaults to True.
-        top_blocks_output (int, optional): _description_. Defaults to None.
-        kernel_initializer (Union[str, Callable], optional): _description_. Defaults to "glorot_uniform".
-        bias_initializer (Union[str, Callable], optional): _description_. Defaults to "zeros".
-        kernel_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
-        bias_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
-        activity_regularizer (Union[str, Callable], optional): _description_. Defaults to None.
-        kernel_constraint (Union[str, Callable], optional): _description_. Defaults to None.
-        bias_constraint (Union[str, Callable], optional): _description_. Defaults to None.
+        dropout (float, optional): _description_.
+            Defaults to 0.1.
+        epsilon (float, optional): _description_.
+            Defaults to 1e-6.
+        intersample_attention (bool, optional): _description_.
+            Defaults to True.
+        top_blocks_output (int, optional): _description_.
+            Defaults to None.
+        kernel_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "glorot_uniform".
+        bias_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        activity_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
 
     Returns:
         tf.keras.Model: _description_

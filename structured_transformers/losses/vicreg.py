@@ -1,4 +1,5 @@
-"""Self-supervised algorithm: VICReg with TensorFlow"""
+"""Self-supervised VICReg objective with TensorFlow"""
+
 
 import tensorflow as tf
 

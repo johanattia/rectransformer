@@ -7,21 +7,30 @@ from .feedforward import FeedForwardNetwork
 
 
 class TransformerBlock(tf.keras.layers.Layer):
-    """[summary]
+    """_summary_
 
     Args:
-        num_heads (int): [description]
-        embed_dim (int): [description]
-        hidden_dim (int): [description]
-        dropout (float, optional): [description]. Defaults to 0.1.
-        epsilon (float, optional): [description]. Defaults to 1e-6.
-        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
-        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
-        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        activity_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        num_heads (int): _description_
+        embed_dim (int): _description_
+        hidden_dim (int): _description_
+        dropout (float, optional): _description_.
+            Defaults to 0.1.
+        epsilon (float, optional): _description_.
+            Defaults to 1e-6.
+        kernel_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "glorot_uniform".
+        bias_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        activity_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
     """
 
     def __init__(
@@ -183,21 +192,30 @@ class TransformerBlock(tf.keras.layers.Layer):
 
 
 class IntersampleTransformerBlock(TransformerBlock):
-    """[summary]
+    """_summary_
 
     Args:
-        num_heads (int): [description]
-        embed_dim (int): [description]
-        hidden_dim (int): [description]
-        dropout (float, optional): [description]. Defaults to 0.1.
-        epsilon (float, optional): [description]. Defaults to 1e-6.
-        kernel_initializer (Union[str, Callable], optional): [description]. Defaults to "glorot_uniform".
-        bias_initializer (Union[str, Callable], optional): [description]. Defaults to "zeros".
-        kernel_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        bias_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        activity_regularizer (Union[str, Callable], optional): [description]. Defaults to None.
-        kernel_constraint (Union[str, Callable], optional): [description]. Defaults to None.
-        bias_constraint (Union[str, Callable], optional): [description]. Defaults to None.
+        num_heads (int): _description_
+        embed_dim (int): _description_
+        hidden_dim (int): _description_
+        dropout (float, optional): _description_.
+            Defaults to 0.1.
+        epsilon (float, optional): _description_.
+            Defaults to 1e-6.
+        kernel_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "glorot_uniform".
+        bias_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "zeros".
+        kernel_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        activity_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
     """
 
     def compute_attention(

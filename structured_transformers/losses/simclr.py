@@ -1,4 +1,4 @@
-"""Self-supervised algorithm: SimCLR with TensorFlow"""
+"""Self-supervised SimCLR objective with TensorFlow"""
 
 from typing import Any, Dict
 
