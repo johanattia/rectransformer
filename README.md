@@ -2,8 +2,8 @@
 Transformer models for structured data with TensorFlow.
 
 ## Multimodal Product Transformers
-* MaskedProductTransformer
-* Data2vecProductTransformer
+* Masked Product Transformer
+* Data2vec Product Transformer
 * GrokFormer
 
 References:
@@ -22,7 +22,7 @@ References:
 * [PolyLoss: A Polynomial Expansion Perspective of Classification Loss Functions](https://arxiv.org/pdf/2204.12511.pdf)
 
 ## Time Series Transformers
-* Temporal Fusion Transformers
+* Temporal Fusion Transformer
 * LogSparse Transformer
 
 References:
