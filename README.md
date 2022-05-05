@@ -1,11 +1,10 @@
 # structured-transformers
 Transformer models for structured data with TensorFlow.
 
-## Transformer Models
-### Self-supervised multimodal product models:
-* **MaskedProductTransformer**
-* **Data2vecProductTransformer**
-* **GrokFormer**
+## Multimodal Product Transformers
+* MaskedProductTransformer
+* Data2vecProductTransformer
+* GrokFormer
 
 References:
 * [Attention Is All You Need](https://arxiv.org/pdf/1706.03762.pdf)
@@ -22,9 +21,9 @@ References:
 * [MultiMAE: Multi-modal Multi-task Masked Autoencoders](https://arxiv.org/pdf/2204.01678.pdf)
 * [PolyLoss: A Polynomial Expansion Perspective of Classification Loss Functions](https://arxiv.org/pdf/2204.12511.pdf)
 
-### Time series models:
-* **Temporal Fusion Transformers**
-* **LogSparse Transformer**
+## Time Series Transformers
+* Temporal Fusion Transformers
+* LogSparse Transformer
 
 References:
 * [Temporal Fusion Transformers for interpretable multi-horizon time series forecasting](https://www.sciencedirect.com/science/article/pii/S0169207021000637)
