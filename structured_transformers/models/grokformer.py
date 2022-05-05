@@ -3,7 +3,7 @@
 import tensorflow as tf
 
 
-class ContrastiveModel(tf.keras.Model):
+class GrokFormer(tf.keras.Model):
     pass
 
 

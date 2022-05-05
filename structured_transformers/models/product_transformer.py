@@ -149,7 +149,7 @@ class SAINT(tf.keras.Model):
 
         # Data schema
         self._schema = None
-        self._built = None
+        self._is_built = None
 
     def build(self, input_shape: Union[tf.TensorShape, Iterable[tf.TensorShape]]):
         """_summary_
@@ -282,11 +282,10 @@ class SAINT(tf.keras.Model):
                 ),
             )
 
-        self._built = True
+        self._is_built = True
         self._schema = schema
 
         dataset = self.apply_preprocessing(dataset, as_supervised)
-
         return dataset
 
     def apply_preprocessing(
@@ -330,7 +329,6 @@ class SAINT(tf.keras.Model):
             }
 
         dataset = dataset.map(preprocess_fn)
-
         return dataset
 
     def call(
