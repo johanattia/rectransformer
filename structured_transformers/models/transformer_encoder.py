@@ -1,6 +1,6 @@
 """Transformer encoder with TensorFlow"""
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Tuple, Union
 import tensorflow as tf
 
 from ..layers import VanillaTransformerBlock, VisionTransformerBlock
@@ -90,8 +90,8 @@ def TransformerEncoder(
     # Define Transformer block
     if vision_transformer:
 
-        def block_fn(x, block_id: int):
-            x = VisionTransformerBlock(
+        def block_fn(x: tf.Tensor, block_id: int) -> Union[tf.Tensor, Tuple[tf.Tensor]]:
+            return VisionTransformerBlock(
                 num_heads=num_heads,
                 embed_dim=embed_dim,
                 hidden_dim=hidden_dim,
@@ -102,12 +102,11 @@ def TransformerEncoder(
                 **weights_parameters,
                 **kwargs,
             )(x)
-            return x
 
     else:
 
-        def block_fn(x, block_id: int):
-            x = VanillaTransformerBlock(
+        def block_fn(x: tf.Tensor, block_id: int) -> Union[tf.Tensor, Tuple[tf.Tensor]]:
+            return VanillaTransformerBlock(
                 num_heads=num_heads,
                 embed_dim=embed_dim,
                 hidden_dim=hidden_dim,
@@ -118,7 +117,6 @@ def TransformerEncoder(
                 **weights_parameters,
                 **kwargs,
             )(x)
-            return x
 
     # Transformer Encoder
     inputs = tf.keras.Input(shape=(None, embed_dim), dtype=tf.float32)
