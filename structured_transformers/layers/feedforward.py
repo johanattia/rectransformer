@@ -1,4 +1,4 @@
-"""Self Attention and Intersample Attention blocks with TensorFlow"""
+"""Single-hidden Layer Feed Forward Network"""
 
 from typing import Callable, Union
 import tensorflow as tf

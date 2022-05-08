@@ -1,4 +1,4 @@
-"""Sharpness-Aware Minimization model with TensorFlow"""
+"""Sharpness-Aware Minimization for Fine-tuning Model"""
 
 import tensorflow as tf
 

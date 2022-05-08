@@ -1,4 +1,4 @@
-"""PolyLoss objective with TensorFlow"""
+"""PolyLoss Loss Objective for Classification"""
 
 import tensorflow as tf
 

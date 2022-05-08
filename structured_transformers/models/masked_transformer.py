@@ -1,4 +1,4 @@
-"""Masked Auto-encoder model for self-supervised learning with TensorFlow"""
+"""Masked Autoencoder with Transformer Encoder for Product Representation"""
 
 from typing import Callable, Dict, Iterable, Union
 

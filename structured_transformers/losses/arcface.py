@@ -1,4 +1,4 @@
-"""PolyLoss objective with TensorFlow"""
+"""ArcFace Loss Objective for Metric Learning"""
 
 import tensorflow as tf
 

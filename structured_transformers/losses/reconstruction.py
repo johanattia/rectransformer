@@ -1,4 +1,4 @@
-"""Feature Reconstruction objective with TensorFlow"""
+"""Feature Reconstruction Loss Objective"""
 
 from typing import Callable, Dict, Union
 

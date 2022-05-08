@@ -1,4 +1,4 @@
-"""Temporal Fusion Transformer with TensorFlow"""
+"""Temporal Fusion Transformer for Time Series Forecasting"""
 
 import tensorflow as tf
 

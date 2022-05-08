@@ -1,4 +1,4 @@
-"""Self-supervised VICReg objective with TensorFlow"""
+"""Self-supervision with VICReg Objective"""
 
 
 import tensorflow as tf

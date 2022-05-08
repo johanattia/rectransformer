@@ -1,4 +1,4 @@
-"""Transformer blocks with TensorFlow"""
+"""Vanilla and Vision Transformer Blocks"""
 
 from typing import Callable, Dict, Iterable, Union
 import tensorflow as tf

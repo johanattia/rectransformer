@@ -1,4 +1,4 @@
-"""Multimodal Image Attribute Model and schema integration with TensorFlow"""
+"""Multimodal Image Attribute Model with Schema Integration"""
 
 import tensorflow as tf
 

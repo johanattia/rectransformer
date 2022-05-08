@@ -1,4 +1,4 @@
-"""Contrastive model for self-supervised learning with TensorFlow"""
+"""GrokNet-like Transformer for Product Representation"""
 
 import tensorflow as tf
 
