@@ -1,4 +1,4 @@
-"""Self Attention and Intersample Attention blocks with TensorFlow"""
+"""Transformer encoder with TensorFlow"""
 
 from typing import Callable, Dict, Union
 import tensorflow as tf
