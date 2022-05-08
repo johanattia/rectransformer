@@ -7,6 +7,8 @@ import tensorflow as tf
 def FeedForwardNetwork(
     hidden_dim: int,
     output_dim: int,
+    dropout: float,
+    use_bias: bool = True,
     hidden_activation: Union[str, Callable] = None,
     output_activation: Union[str, Callable] = None,
     kernel_initializer: Union[str, Callable] = "glorot_uniform",
@@ -50,7 +52,7 @@ def FeedForwardNetwork(
             tf.keras.layers.Dense(
                 units=hidden_dim,
                 activation=hidden_activation,
-                use_bias=True,
+                use_bias=use_bias,
                 kernel_initializer=kernel_initializer,
                 bias_initializer=bias_initializer,
                 kernel_regularizer=kernel_regularizer,
@@ -60,10 +62,11 @@ def FeedForwardNetwork(
                 bias_constraint=bias_constraint,
                 **kwargs,
             ),
+            tf.keras.layers.Dropout(rate=dropout),
             tf.keras.layers.Dense(
                 units=output_dim,
                 activation=output_activation,
-                use_bias=True,
+                use_bias=use_bias,
                 kernel_initializer=kernel_initializer,
                 bias_initializer=bias_initializer,
                 kernel_regularizer=kernel_regularizer,
@@ -73,5 +76,6 @@ def FeedForwardNetwork(
                 bias_constraint=bias_constraint,
                 **kwargs,
             ),
+            tf.keras.layers.Dropout(rate=dropout),
         ]
     )

@@ -3,7 +3,7 @@
 from typing import Callable, Dict, Union
 import tensorflow as tf
 
-from ..layers import TransformerBlock, IntersampleTransformerBlock
+from ..layers import VanillaTransformerBlock, VisionTransformerBlock
 
 
 def TransformerEncoder(
@@ -13,7 +13,7 @@ def TransformerEncoder(
     hidden_dim: int,
     dropout: float = 0.1,
     epsilon: float = 1e-6,
-    intersample_attention: bool = True,
+    vision_transformer: bool = True,
     top_blocks_output: int = None,
     kernel_initializer: Union[str, Callable] = "glorot_uniform",
     bias_initializer: Union[str, Callable] = "zeros",
@@ -24,7 +24,7 @@ def TransformerEncoder(
     bias_constraint: Union[str, Callable] = None,
     **kwargs,
 ) -> tf.keras.Model:
-    """Self-Attention and Intersample Attention Transformer (SAINT).
+    """Instantiate Vanilla/Vision Transformer encoder.
 
     Args:
         num_blocks (int): _description_
@@ -35,7 +35,7 @@ def TransformerEncoder(
             Defaults to 0.1.
         epsilon (float, optional): _description_.
             Defaults to 1e-6.
-        intersample_attention (bool, optional): _description_.
+        vision_transformer (bool, optional): _description_.
             Defaults to True.
         top_blocks_output (int, optional): _description_.
             Defaults to None.
@@ -57,6 +57,24 @@ def TransformerEncoder(
     Returns:
         tf.keras.Model: _description_
     """
+    if top_blocks_output is not None:
+        if num_blocks == 1:
+            raise ValueError(
+                """It doesn't make sense to extract `ffn_output` with `num_blocks` == 1. 
+                Please consider `num_blocks` > 1 then `top_blocks_output` at most equal 
+                to `num_blocks`.
+                """
+            )
+        elif top_blocks_output > num_blocks:
+            raise ValueError(
+                "Please select `top_blocks_output` at most equal to `num_blocks`."
+            )
+        else:
+            ffn_output = True
+            block_begin = num_blocks - top_blocks_output + 1
+    else:
+        ffn_output = False
+
     # Parameters
     weights_parameters = dict(
         kernel_initializer=kernel_initializer,
@@ -67,29 +85,20 @@ def TransformerEncoder(
         kernel_constraint=kernel_constraint,
         bias_constraint=bias_constraint,
     )
-    name = kwargs.pop("name", "transformer")
+    name = kwargs.pop("name", "encoder")
 
     # Define Transformer block
-    if intersample_attention:
+    if vision_transformer:
 
-        def block_fn(x, block_idx: int):
-            x = TransformerBlock(
+        def block_fn(x, block_id: int):
+            x = VisionTransformerBlock(
                 num_heads=num_heads,
                 embed_dim=embed_dim,
                 hidden_dim=hidden_dim,
+                ffn_output=ffn_output,
                 dropout=dropout,
                 epsilon=epsilon,
-                name=name + "_transformer_block" + str(block_idx),
-                **weights_parameters,
-                **kwargs,
-            )(x)
-            x = IntersampleTransformerBlock(
-                num_heads=num_heads,
-                embed_dim=embed_dim,
-                hidden_dim=hidden_dim,
-                dropout=dropout,
-                epsilon=epsilon,
-                name=name + "_intersample_block" + str(block_idx),
+                name=name + "_vit_block" + str(block_id),
                 **weights_parameters,
                 **kwargs,
             )(x)
@@ -97,33 +106,42 @@ def TransformerEncoder(
 
     else:
 
-        def block_fn(x, block_idx: int):
-            return TransformerBlock(
+        def block_fn(x, block_id: int):
+            x = VanillaTransformerBlock(
                 num_heads=num_heads,
                 embed_dim=embed_dim,
                 hidden_dim=hidden_dim,
+                ffn_output=ffn_output,
                 dropout=dropout,
                 epsilon=epsilon,
-                name=name + "_transformer_block" + str(block_idx),
+                name=name + "_transformer_block" + str(block_id),
                 **weights_parameters,
                 **kwargs,
             )(x)
+            return x
 
     # Transformer Encoder
-    x = tf.keras.Input(shape=(None, embed_dim), dtype=tf.float32)
-    output: Dict[str, tf.Tensor] = {}
+    inputs = tf.keras.Input(shape=(None, embed_dim), dtype=tf.float32)
+    outputs: Dict[str, tf.Tensor] = {}
 
-    for idx in range(1, num_blocks + 1):
-        x = block_fn(x, block_idx=idx)
+    if ffn_output:
+        x, ffn = block_fn(inputs, block_id=1)
 
-        if isinstance(top_blocks_output is not None) and (
-            idx >= num_blocks - top_blocks_output
-        ):
-            output[name + "_block" + str(idx)] = x
-        elif (top_blocks_output is None) and (idx == num_blocks):
-            output = {
-                "full_output": x,
-                "cls_output": x[:, 0, :],
-            }
+        if block_begin >= 1:
+            outputs[name + "_block1_ffn"] = ffn
+    else:
+        x = block_fn(inputs, block_id=1)
 
-    return tf.keras.Model(inputs=x, outputs=output, name=name)
+    for idx in range(2, num_blocks + 1):
+        if ffn_output:
+            x, ffn = block_fn(x, block_id=idx)
+
+            if block_begin >= idx:
+                outputs[name + "_block" + str(idx) + "_ffn"] = ffn
+        else:
+            x = block_fn(x, block_id=idx)
+
+    outputs["full_output"] = x
+    outputs["cls_output"] = x[:, 0, :]
+
+    return tf.keras.Model(inputs=inputs, outputs=outputs, name=name)
