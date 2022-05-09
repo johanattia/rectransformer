@@ -1,4 +1,4 @@
-"""Masked Autoencoder with Transformer Encoder for Product Representation"""
+"""Masked Autoencoder Transformer for Product Representation"""
 
 from typing import Callable, Dict, Iterable, Union
 
