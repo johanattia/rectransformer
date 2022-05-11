@@ -17,8 +17,9 @@ def Data2vecOptimizer() -> tf.keras.optimizers.Optimizer:
 
 
 class Data2vecTransformer(ImageAttributeModel):
-    """Data2vec algorithm with student and teacher Transformers.
-    For more details, see the paper: https://arxiv.org/pdf/2202.03555.pdf.
+    """Multimodal self-supervised learning with data2vec.
+    For more details on the learning procedure, see the paper:
+    * https://arxiv.org/pdf/2202.03555.pdf.
 
     Example:
     ```python
@@ -36,6 +37,38 @@ class Data2vecTransformer(ImageAttributeModel):
             vision_transformer=True
         )
     ```
+
+    Args:
+        num_blocks (int): _description_
+        num_heads (int): _description_
+        embed_dim (int): _description_
+        hidden_dim (int): _description_
+        dropout (float, optional): _description_.
+            Defaults to 0.1.
+        epsilon (float, optional): _description_.
+            Defaults to 1e-6.
+        vision_transformer (bool, optional): _description_.
+            Defaults to True.
+        embeddings_initializer (str, optional): _description_.
+            Defaults to "uniform".
+        kernel_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "glorot_uniform".
+        bias_initializer (Union[str, Callable], optional): _description_.
+            Defaults to "zeros".
+        embeddings_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        kernel_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        activity_regularizer (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        embeddings_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        kernel_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
+        bias_constraint (Union[str, Callable], optional): _description_.
+            Defaults to None.
     """
 
     def __init__(
@@ -59,40 +92,6 @@ class Data2vecTransformer(ImageAttributeModel):
         bias_constraint: Union[str, Callable] = None,
         **kwargs,
     ):
-        """Instantiate data2vec with teacher and student Transformers.
-
-        Args:
-            num_blocks (int): _description_
-            num_heads (int): _description_
-            embed_dim (int): _description_
-            hidden_dim (int): _description_
-            dropout (float, optional): _description_.
-                Defaults to 0.1.
-            epsilon (float, optional): _description_.
-                Defaults to 1e-6.
-            vision_transformer (bool, optional): _description_.
-                Defaults to True.
-            embeddings_initializer (str, optional): _description_.
-                Defaults to "uniform".
-            kernel_initializer (Union[str, Callable], optional): _description_.
-                Defaults to "glorot_uniform".
-            bias_initializer (Union[str, Callable], optional): _description_.
-                Defaults to "zeros".
-            embeddings_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            kernel_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            bias_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            activity_regularizer (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            embeddings_constraint (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            kernel_constraint (Union[str, Callable], optional): _description_.
-                Defaults to None.
-            bias_constraint (Union[str, Callable], optional): _description_.
-                Defaults to None.
-        """
         super().__init__(
             embed_dim=embed_dim,
             embeddings_initializer=embeddings_initializer,
@@ -117,6 +116,14 @@ class Data2vecTransformer(ImageAttributeModel):
 
         self._top_blocks_target = None
         self._self_supervised_pretraining = None
+
+    @property
+    def pretraining(self):
+        return self._self_supervised_pretraining
+
+    @pretraining.setter
+    def pretraining(self, value: bool = True):
+        self._self_supervised_pretraining = value
 
     def build(self, input_shape: tf.TensorShape):
         # CLS TOKEN EMBEDDING
@@ -180,11 +187,13 @@ class Data2vecTransformer(ImageAttributeModel):
         outputs: Dict[str, tf.Tensor] = {}
 
         x, ffn = block_fn(inputs, name, block_id=1)
-        outputs[name + "_block1_ffn"] = ffn
+        outputs[name + "_block1_ffn"] = ffn  # tf.reduce_mean(ffn, axis=1)
 
         for i in range(2, self.num_blocks + 1):
             x, ffn = block_fn(x, name, block_id=i)
-            outputs[name + "_block" + str(i) + "_ffn"] = ffn
+            outputs[
+                name + "_block" + str(i) + "_ffn"
+            ] = ffn  # tf.reduce_mean(ffn, axis=1)
 
         outputs.update({"full_output": x, "cls_output": x[:, 0, :]})
 
