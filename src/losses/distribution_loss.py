@@ -5,17 +5,17 @@ from typing import Callable, Union
 import tensorflow as tf
 
 
-class EntropyDistributionLoss(tf.keras.losses.Loss):
+class EntropicDistributionLoss(tf.keras.losses.Loss):
     """_summary_
 
     Args:
-        entropy_distance (Union[str, Callable], optional): _description_.
+        entropy_distance (str or callable): _description_.
             Defaults to None.
-        from_logits (bool, optional): _description_.
+        from_logits (bool): _description_.
             Defaults to False.
-        reduction (str, optional): _description_.
+        reduction (str): _description_.
             Defaults to tf.keras.losses.Reduction.AUTO.
-        name (str, optional): _description_.
+        name (str): _description_.
             Defaults to None.
 
     Raises:
@@ -30,7 +30,6 @@ class EntropyDistributionLoss(tf.keras.losses.Loss):
         name: str = None,
     ):
         super().__init__(reduction, name)
-
         if entropy_distance is None:
             entropy_distance = tf.keras.losses.MeanSquaredError(
                 reduction=tf.keras.losses.Reduction.NONE
@@ -53,6 +52,9 @@ class EntropyDistributionLoss(tf.keras.losses.Loss):
         )
 
     def call(self, y_true: tf.Tensor, y_pred: tf.Tensor) -> tf.Tensor:
+        y_true = tf.cast(y_true, dtype=tf.float32)
+        y_pred = tf.cast(y_pred, dtype=tf.float32)
+
         if self._from_logits:
             y_pred = tf.nn.softmax(y_pred, axis=-1)
 
