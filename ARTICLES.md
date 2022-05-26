@@ -4,6 +4,7 @@
 * [Improving Language Understanding by Generative Pre-Training](https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf)
 * [Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)
 * [Generating Long Sequences with Sparse Transformers](https://arxiv.org/pdf/1904.10509.pdf)
+* [GLU Variants Improve Transformer](https://arxiv.org/pdf/2002.05202.pdf)
 * [A Simple Framework for Contrastive Learning of Visual Representations](https://arxiv.org/pdf/2002.05709.pdf)
 * [Big Self-Supervised Models are Strong Semi-Supervised Learners](https://arxiv.org/pdf/2006.10029.pdf)
 * [GrokNet: Unified Computer Vision Model Trunk and Embeddings For Commerce](https://ai.facebook.com/research/publications/groknet-unified-computer-vision-model-trunk-and-embeddings-for-commerce/)
@@ -18,6 +19,7 @@
 * [PolyLoss: A Polynomial Expansion Perspective of Classification Loss Functions](https://arxiv.org/pdf/2204.12511.pdf)
 * [CoCa: Contrastive Captioners are Image-Text Foundation Models](https://arxiv.org/pdf/2205.01917v1.pdf)
 * [A Generalist Agent](https://arxiv.org/pdf/2205.06175.pdf)
+* [Introducing CommerceMM: A new approach to multimodal understanding for online shopping](https://ai.facebook.com/blog/commercemm-a-new-approach-to-multimodal-understanding-for-online-shopping/)
 
 
 # Time Series Transformers
