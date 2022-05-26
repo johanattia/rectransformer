@@ -1,7 +1,7 @@
 """Modified entropy-related loss for distributional learning"""
 
 
-from typing import Callable, Optional, Union
+from typing import Optional
 import tensorflow as tf
 
 
