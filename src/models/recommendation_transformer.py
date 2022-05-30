@@ -6,10 +6,10 @@ import tensorflow as tf
 from ..layers import VanillaTransformerBlock
 
 
-class GenerativeTransformer(tf.keras.Model):
+class RecommendationTransformer(tf.keras.Model):
     """_summary_
     Implement autoregressive Transformer (see GPTs & DeepMind Gato for architecture)
-    for recommendation.
+    for baskets recommendation.
 
     References:
     * Generating Long Sequences with Sparse Transformers: https://arxiv.org/pdf/1904.10509.pdf

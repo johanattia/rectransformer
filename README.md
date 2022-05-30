@@ -5,7 +5,7 @@ Transformer models for product representation and tasks with TensorFlow.
 * Masked Product Transformer
 * Data2vec Product Transformer
 * GrokFormer
-* GenerativeTransformer
+* RecommendationTransformer
 
 ## Time Series Transformers
 * Temporal Fusion Transformer
