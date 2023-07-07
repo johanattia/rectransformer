@@ -1,15 +1,13 @@
-# product-transformers
-Transformer models for product representation and tasks with TensorFlow.
+# structured-models
+Structured Models for Recommendation, Representation & Forecast.
 
-## Multimodal Product Transformers
-* Masked Product Transformer
-* Data2vec Product Transformer
-* GrokFormer
-* RecommendationTransformer
+## Recommendation Models
+* RecFormer as Universal Transformer Recommender
 
-## Time Series Transformers
+## Forecast Models
 * Temporal Fusion Transformer
-* LogSparse Transformer
+* MQ-Transformer
+* Hierarchical Model
 
 
 ## License
