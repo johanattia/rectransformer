@@ -2,12 +2,14 @@
 
 
 from typing import Optional
+
 import tensorflow as tf
+from tensorflow.keras import losses
 
 
-class EntropicDistributionLoss(tf.keras.losses.Loss):
-    """Initializes a distributional loss instance based on
-    Kullback-Leibler divergence and entropies distance.
+class EntropicDistributionLoss(losses.Loss):
+    """Initializes a distributional loss instance based on Kullback-Leibler divergence
+    and entropies distance.
 
     Args:
         entropy_distance (tf.keras.losses.Loss): Error function used to compute
@@ -23,26 +25,24 @@ class EntropicDistributionLoss(tf.keras.losses.Loss):
 
     def __init__(
         self,
-        entropy_distance: Optional[tf.keras.losses.Loss] = None,
+        entropy_distance: Optional[losses.Loss] = None,
         from_logits: bool = False,
-        reduction: str = tf.keras.losses.Reduction.AUTO,
+        reduction: str = losses.Reduction.AUTO,
         name: str = None,
     ):
         super().__init__(reduction, name)
-
-        entropy_distance = tf.keras.losses.get(entropy_distance)
-        self._entropy_distance = (
+        entropy_distance = losses.get(entropy_distance)
+        self.entropy_distance = (
             entropy_distance
             if entropy_distance is not None
             else tf.keras.losses.MeanSquaredError()
         )
-        self._entropy_distance.reduction = tf.keras.losses.Reduction.NONE
-
-        self._from_logits = from_logits
+        self.entropy_distance.reduction = tf.keras.losses.Reduction.NONE
+        self.from_logits = from_logits
 
     @staticmethod
-    def _compute_entropy(dist: tf.Tensor) -> tf.Tensor:
-        return tf.keras.losses.categorical_crossentropy(
+    def compute_entropy(dist: tf.Tensor) -> tf.Tensor:
+        return losses.categorical_crossentropy(
             y_true=dist, y_pred=dist, from_logits=False
         )
 
@@ -50,31 +50,30 @@ class EntropicDistributionLoss(tf.keras.losses.Loss):
         y_true = tf.cast(y_true, dtype=tf.float32)
         y_pred = tf.cast(y_pred, dtype=tf.float32)
 
-        if self._from_logits:
+        if self.from_logits:
             y_pred = tf.nn.softmax(y_pred, axis=-1)
 
-        y_true_entropy = self._compute_entropy(y_true)
-        y_pred_entropy = self._compute_entropy(y_pred)
+        y_true_entropy = self.compute_entropy(y_true)
+        y_pred_entropy = self.compute_entropy(y_pred)
 
-        entropy_distance = self._entropy_distance(
+        entropy_distance = self.entropy_distance(
             y_true=y_true_entropy, y_pred=y_pred_entropy
         )
-        distribution_divergence = tf.keras.losses.kl_divergence(
-            y_true=y_true, y_pred=y_pred
-        )
+        distribution_divergence = losses.kl_divergence(y_true=y_true, y_pred=y_pred)
+
         return entropy_distance + distribution_divergence
 
     def get_config(self):
         config = super().get_config()
         config.update(
             {
-                "entropy_distance": tf.keras.losses.serialize(self._entropy_distance),
-                "from_logits": self._from_logits,
+                "entropy_distance": losses.serialize(self.entropy_distance),
+                "from_logits": self.from_logits,
             }
         )
         return config
 
     @classmethod
     def from_config(cls, config):
-        config["entropy_distance"] = tf.keras.losses.get(config["entropy_distance"])
+        config["entropy_distance"] = losses.get(config["entropy_distance"])
         return cls(**config)

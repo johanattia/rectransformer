@@ -4,7 +4,7 @@
 from typing import Callable, Dict, List, Tuple, Union
 import tensorflow as tf
 
-from .multimodal_structured import ImageAttributeModel
+from ..structured_model import ImageAttributeModel
 from ..layers import VanillaTransformerBlock, VisionTransformerBlock
 
 
