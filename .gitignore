@@ -128,7 +128,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-.DS_Store
-
-# tests
-tf_saint/notebook_test/
+.vscode
