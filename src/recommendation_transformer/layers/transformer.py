@@ -1,5 +1,3 @@
-"""Transformer blocks for Attribution Models"""
-
 from typing import Callable, TypedDict, Union
 
 import keras
