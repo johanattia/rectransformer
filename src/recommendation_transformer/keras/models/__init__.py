@@ -1,0 +1,3 @@
+import recommendation_transformer
+from recommendation_transformer.keras.models.rectransformer import RecTransformer
+from recommendation_transformer.keras.models.structured_model import StructuredModel

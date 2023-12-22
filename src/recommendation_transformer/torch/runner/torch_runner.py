@@ -6,10 +6,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-from recommendation_transformer.torch import callbacks
+from recommendation_transformer.torch.callbacks import callback
 
 
-class ModuleRunner:
+class TorchRunner:
     """Lightweight single-runner object for training, evaluation and inference.
 
     Orbit:
@@ -41,7 +41,7 @@ class ModuleRunner:
         self,
         epochs: int,
         optimizer: optim.Optimizer,
-        callbacks: Iterable[callbacks.Callback] = None,
+        callbacks: Iterable[callback.Callback] = None,
         # dataset, loss, metrics, compile...
     ):
         pass
