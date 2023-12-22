@@ -5,8 +5,13 @@ from keras import layers
 from keras.backend import KerasTensor
 
 from recommendation_transformer import feature
-from recommendation_transformer.models import StructuredModel
-from src.recommendation_transformer.layers import predictor
+from recommendation_transformer.keras.layers import (
+    AttentionPooling,
+    Predictor,
+    TransformerDecoderBlock,
+    TransformerEncoderBlock,
+)
+from recommendation_transformer.keras.models import StructuredModel
 
 
 class FeatureConsistencyError(Exception):
