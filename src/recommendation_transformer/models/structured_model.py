@@ -1,6 +1,3 @@
-"""Keras Structured Model"""
-
-
 from typing import Any, Callable, Dict, Iterable, Union
 
 import keras
@@ -14,8 +11,6 @@ from recommendation_transformer import feature
 
 
 class StructuredModel(keras.Model):
-    """Structured Model"""
-
     def __init__(
         self,
         features: Dict[str, feature.FeatureConfig],

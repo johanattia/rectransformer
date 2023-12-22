@@ -20,28 +20,6 @@ class DecoderBlockInput(TypedDict, total=False):
 
 
 class TransformerEncoderBlock(layers.Layer):
-    """Transformer Encoder block.
-
-    Args:
-        num_heads (int): number of attention heads.
-        embed_dim (int): expected feature dimension of layer inputs
-            and output.
-        inner_dim (int): inner feature dimension in FFN block. Defaults to None.
-        output_dim (int): output feature dimension of FFN block. Defaults to None.
-        norm_first (bool): whether to use pre-normalization or post
-            normalization in Transformer block logic. Defaults to True.
-        activation (Union[Callable, str]): activation function for
-            the FFN block. Defaults to "gelu".
-        output_dropout (float): dropout rate for FFN output.
-            Defaults to 0.0.
-        attention_dropout (float): dropout rate for MultiHeadAttention
-            layer. Defaults to 0.0.
-        inner_dropout (float): dropout rate for FFN intermediate
-            output. Defaults to 0.0.
-        epsilon (float): LayerNormalization's epsilon for variance.
-            Defaults to 1e-6.
-    """
-
     def __init__(
         self,
         num_heads: int,
@@ -57,7 +35,7 @@ class TransformerEncoderBlock(layers.Layer):
         **kwargs
     ):
         super().__init__(**kwargs)
-        # ATTRIBUTES
+        # ARCHITECTURE ATTRIBUTES
         self.num_heads = num_heads
         self.embed_dim = embed_dim
         self.inner_dim = inner_dim if inner_dim is not None else embed_dim
@@ -71,7 +49,7 @@ class TransformerEncoderBlock(layers.Layer):
         activation = keras.activations.get(activation)
         self.activation = activation
 
-        # BLOCKS
+        # ARCHITECTURE LAYERS
         self.attention_norm = layers.LayerNormalization(epsilon=self.epsilon)
         self.attention = layers.MultiHeadAttention(
             num_heads=self.num_heads,
@@ -156,29 +134,6 @@ class TransformerEncoderBlock(layers.Layer):
 
 
 class TransformerDecoderBlock(layers.Layer):
-    """Transformer Decoder block with cross attention.
-
-    Args:
-        num_heads (int): Number of attention heads.
-        embed_dim (int): Expected feature dimension of layer inputs
-            and output.
-        inner_dim (int): inner feature dimension in FFN block. Defaults to None.
-        output_dim (int): output feature dimension of FFN block. Defaults to None.
-        norm_first (bool): whether to use pre-normalization or post
-            normalization for Transformer block logic. Defaults
-            to True.
-        activation (Union[Callable, str]): Activation function for
-            the FFN block. Defaults to "gelu".
-        output_dropout (float): Dropout rate for FFN output.
-            Defaults to 0.0.
-        attention_dropout (float): Dropout rate for MultiHeadAttention
-            layer. Defaults to 0.0.
-        inner_dropout (float): Dropout rate for FFN intermediate
-            output. Defaults to 0.0.
-        epsilon (float): LayerNormalization's epsilon for variance.
-            Defaults to 1e-6.
-    """
-
     def __init__(
         self,
         num_heads: int,
@@ -194,7 +149,7 @@ class TransformerDecoderBlock(layers.Layer):
         **kwargs
     ):
         super().__init__(**kwargs)
-        # ATTRIBUTES
+        # ARCHITECTURE ATTRIBUTES
         self.num_heads = num_heads
         self.embed_dim = embed_dim
         self.inner_dim = inner_dim if inner_dim is not None else embed_dim
@@ -208,7 +163,7 @@ class TransformerDecoderBlock(layers.Layer):
         activation = keras.activations.get(activation)
         self.activation = activation
 
-        # BLOCKS
+        # ARCHITECTURE LAYERS
         self.self_attention_norm = layers.LayerNormalization(epsilon=self.epsilon)
         self.self_attention = layers.MultiHeadAttention(
             num_heads=self.num_heads,

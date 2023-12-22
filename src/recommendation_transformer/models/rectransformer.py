@@ -124,4 +124,5 @@ class RecTransformer(StructuredModel):
         return NotImplemented
 
     def get_config(self) -> Dict[str, Any]:
-        return super().get_config()
+        # return super().get_config()
+        return NotImplemented

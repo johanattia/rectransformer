@@ -1,5 +1,3 @@
-"""Attention Pooling"""
-
 from typing import Callable, Dict, TypedDict, Union
 
 import keras
@@ -27,13 +25,13 @@ class AttentionPooling(layers.Layer):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        # Attributes
+        # ARCHITECTURE ATTRIBUTES
         self.hidden_dim = hidden_dim
         activation = keras.activations.get(activation)
         self.activation = activation
         self.use_bias = use_bias
 
-        # Layers
+        # ARCHITECTURE LAYERS
         self.dense1 = layers.Dense(
             units=self.hidden_dim, activation=self.activation, use_bias=self.use_bias
         )
@@ -42,7 +40,7 @@ class AttentionPooling(layers.Layer):
         )
         self.softmax = layers.Softmax(axis=1)
 
-        # Weights
+        # WEIGHTS
         self.conversion_query = self.add_weight(
             name="conversion_query",
             shape=[self.hidden_dim, 1],
