@@ -19,7 +19,7 @@ class TorchRunner:
         self,
         model: nn.Module,
         jit_compile: bool,
-        criterion: nn.Module,
+        loss_fn: nn.Module,
         optimizer: torch.optim.Optimizer,
         loss_tracker: keras.metrics.Metric,
         metrics: Iterable[keras.metrics.Metric],
@@ -30,7 +30,7 @@ class TorchRunner:
             self.model = model
 
         self.jit_compile = jit_compile
-        self.criterion = criterion
+        self.loss_fn = loss_fn
         self.optimizer = optimizer
 
         if isinstance(loss_tracker, (keras.metrics.Mean, keras.metrics.Sum)):
@@ -45,7 +45,7 @@ class TorchRunner:
         self._validation_dataloader = None
         self._callbacks = None
 
-        self._completed_train_counter = 0
+        self._train_counter = 0
 
     def reset_metrics(self):
         pass
@@ -66,17 +66,17 @@ class TorchRunner:
         sample_weight: torch.Tensor = None,
     ) -> torch.Tensor:
         if sample_weight is None:
-            return self.criterion(y_pred, y_true)
+            return self.loss_fn(y_pred, y_true)
 
-        if self.criterion.reduction == "none":
-            return self.criterion(y_pred, y_true) * sample_weight
+        if self.loss_fn.reduction == "none":
+            return self.loss_fn(y_pred, y_true) * sample_weight
         else:
-            criterion = self.criterion.__class__()
-            criterion.__dict__.update(self.criterion.__dict__)
-            criterion.reduction = "none"
+            loss_fn = self.loss_fn.__class__()
+            loss_fn.__dict__.update(self.loss_fn.__dict__)
+            loss_fn.reduction = "none"
 
-            sample_loss = criterion(y_pred, y_true) * sample_weight
-            reduce_fn = torch.sum if self._criterion.reduction == "sum" else torch.mean
+            sample_loss = loss_fn(y_pred, y_true) * sample_weight
+            reduce_fn = torch.sum if self.loss_fn.reduction == "sum" else torch.mean
 
             return reduce_fn(sample_loss)
 
@@ -139,5 +139,5 @@ class TorchRunner:
     ):
         self.model.train()
 
-        self.completed_train_counter += 1
+        self._train_counter += 1
         return
