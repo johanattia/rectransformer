@@ -7,7 +7,8 @@ from pydantic.dataclasses import dataclass
 import keras
 from keras import layers
 
-import torch.nn as nn
+import torch
+from torch import nn
 
 
 class FeatureArgumentError(Exception):
@@ -37,7 +38,7 @@ class FeatureConfig:
 
     def to_layer(
         self,
-        output_dim: int = 32,
+        output_dim: int,
         activation: Union[str, Callable] = None,
         use_bias: bool = True,
         embeddings_initializer: Union[str, Callable] = "uniform",
@@ -94,25 +95,56 @@ class FeatureConfig:
 
     def to_module(
         self,
-        output_dim: int = 32,
+        output_dim: int,
         activation: nn.Module = None,
         bias: bool = True,
-        padding_idx=None,
-        max_norm=None,
-        norm_type=2.0,
-        scale_grad_by_freq=False,
-        sparse=False,
+        padding_idx: int = None,
+        max_norm: float = None,
+        norm_type: float = 2.0,
+        scale_grad_by_freq: bool = False,
+        sparse: bool = False,
         device=None,
         dtype=None,
-    ):
-        return NotImplemented
+    ) -> nn.Module:
+        if self.layer == FeatureLayer.DENSE and self.mode in [
+            FeatureMode.FLOAT,
+            FeatureMode.ONE_HOT,
+        ]:
+            module_config = {
+                "in_features": self.cardinality,
+                "out_features": output_dim,
+                "bias": bias,
+                "device": device,
+                "dtype": dtype,
+            }
+            if bias:
+                return nn.Sequential(nn.Linear(**module_config), activation)
+            else:
+                return nn.Linear(**module_config)
+
+        elif self.layer == FeatureLayer.EMBEDDING and self.mode == FeatureMode.INT:
+            module_config = {
+                "num_embeddings": self.cardinality,
+                "embedding_dim": output_dim,
+                "padding_idx": padding_idx,
+                "max_norm": max_norm,
+                "norm_type": norm_type,
+                "scale_grad_by_freq": scale_grad_by_freq,
+                "sparse": sparse,
+                "device": device,
+                "dtype": dtype,
+            }
+            return nn.Embedding(**module_config)
+
+        elif self.layer == FeatureLayer.IDENTITY:
+            return nn.Identity()
+
+        else:
+            raise FeatureArgumentError
 
     def to_dict(self):
-        """Serialization method."""
         config_dict = asdict(self)
-        config_dict["format"] = self.format.value
-        config_dict["layer"] = self.layer.value
-
+        config_dict.update({"format": self.format.value, "layer": self.layer.value})
         return config_dict
 
     @classmethod
