@@ -28,6 +28,7 @@ class TorchRunner:
         optimizer: torch.optim.Optimizer,
         loss_tracker: keras.metrics.Metric,
         metrics: Iterable[keras.metrics.Metric],
+        # evaluation_metrics: Iterable[keras.metrics.Metric] = None,
     ):
         if jit_compile and not isinstance(model, torch._dynamo.OptimizedModule):
             self.model = torch.compile(model)
@@ -45,6 +46,7 @@ class TorchRunner:
                 "`loss_tracker` should be keras.metrics.Mean or keras.metrics.Sum."
             )
         self.metrics = metrics
+        # self.evaluation_metrics = evaluation_metrics
 
         self._train_dataloader = None
         self._validation_dataloader = None
