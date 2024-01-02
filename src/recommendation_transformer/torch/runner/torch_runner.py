@@ -1,10 +1,7 @@
 """Lightweight Torch Module Runner for Training, Evaluation and Inference"""
 
 import os
-from random import sample
-from typing import Dict, Iterable, Tuple, Union
-from weakref import finalize
-from xml.etree.ElementInclude import include
+from typing import Iterable
 
 os.environ["KERAS_BACKEND"] = "torch"
 
@@ -110,7 +107,6 @@ class TorchRunner:
 
             return reduce_fn(sample_loss)
 
-    # sample_weight à revoir
     def test_step(
         self,
         inputs: torch.Tensor,
@@ -134,7 +130,6 @@ class TorchRunner:
         self.model.train()
         pass
 
-    # sample_weight à revoir
     def evaluate(self, test_dataloader: torch.utils.data.DataLoader):
         self.reset_metrics(include_loss=True)
 
