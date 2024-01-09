@@ -11,9 +11,7 @@ from keras import backend
 from recommendation_transformer.torch import callbacks
 
 
-# TODO;
-# handling sample_weight argument
-# finalize compute_loss method with per_sample arg
+# TODO: train + predict methods
 
 
 class TorchRunner:
@@ -40,6 +38,14 @@ class TorchRunner:
         self.jit_compile = jit_compile
         self.loss_fn = loss_fn
         self.optimizer = optimizer
+
+        if loss_fn.reduction == "none":
+            sample_loss = loss_fn
+        else:
+            sample_loss = self.loss_fn.__class__()
+            sample_loss.__dict__.update(self.loss_fn.__dict__)
+            sample_loss.reduction = "none"
+        self.sample_loss = sample_loss
 
         if isinstance(loss_tracker, (keras.metrics.Mean, keras.metrics.Sum)):
             self._loss_tracker = loss_tracker
@@ -87,29 +93,17 @@ class TorchRunner:
         y_true: torch.Tensor,
         y_pred: torch.Tensor,
         sample_weight: torch.Tensor = None,
-        per_sample: bool = False,
     ) -> torch.Tensor:
-        if per_sample:
-            loss_fn = self.loss_fn.__class__()
-            loss_fn.__dict__.update(self.loss_fn.__dict__)
-            loss_fn.reduction = "none"
-
-            return loss_fn(y_pred, y_true)
-
         if sample_weight is None:
             return self.loss_fn(y_pred, y_true)
 
+        weighted_losses = self.sample_loss(y_pred, y_true) * sample_weight
+
         if self.loss_fn.reduction == "none":
-            return self.loss_fn(y_pred, y_true) * sample_weight
+            return weighted_losses
         else:
-            loss_fn = self.loss_fn.__class__()
-            loss_fn.__dict__.update(self.loss_fn.__dict__)
-            loss_fn.reduction = "none"
-
-            sample_loss = loss_fn(y_pred, y_true) * sample_weight
             reduce_fn = torch.sum if self.loss_fn.reduction == "sum" else torch.mean
-
-            return reduce_fn(sample_loss)
+            return reduce_fn(weighted_losses)
 
     def test_step(
         self,
@@ -120,7 +114,7 @@ class TorchRunner:
 
         with torch.no_grad():
             outputs = self.model(inputs)
-            losses = self.compute_loss(y_true=targets, y_pred=outputs, per_sample=True)
+            losses = self.sample_loss(y_true=targets, y_pred=outputs)
 
         return outputs, losses
 
@@ -158,7 +152,7 @@ class TorchRunner:
                 losses=losses,
             )
             results = self.compute_metrics(include_loss=True)
-            progbar.update(step + 1, values=results, finalize=True)
+            progbar.update(step + 1, values=results, finalize=False)
 
         progbar.update(step + 1, values=results, finalize=True)
         return results
