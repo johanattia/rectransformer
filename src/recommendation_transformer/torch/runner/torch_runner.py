@@ -1,13 +1,12 @@
 """Lightweight Torch Module Runner for Training, Evaluation and Inference"""
 
-import os
 from typing import Iterable
-
-os.environ["KERAS_BACKEND"] = "torch"
 
 import torch
 from torch import nn
+
 import keras
+from keras import backend
 
 from recommendation_transformer.torch import callbacks
 
@@ -28,13 +27,16 @@ class TorchRunner:
         optimizer: torch.optim.Optimizer,
         loss_tracker: keras.metrics.Metric,
         metrics: Iterable[keras.metrics.Metric],
-        # evaluation_metrics: Iterable[keras.metrics.Metric] = None,
+        test_metrics: Iterable[keras.metrics.Metric] = None,
     ):
+        _backend = backend.backend()
+        if _backend != "torch":
+            raise ValueError(f"Keras backend should be `torch`. Got `{_backend}`")
+
         if jit_compile and not isinstance(model, torch._dynamo.OptimizedModule):
             self.model = torch.compile(model)
         else:
             self.model = model
-
         self.jit_compile = jit_compile
         self.loss_fn = loss_fn
         self.optimizer = optimizer
@@ -46,7 +48,7 @@ class TorchRunner:
                 "`loss_tracker` should be keras.metrics.Mean or keras.metrics.Sum."
             )
         self.metrics = metrics
-        # self.evaluation_metrics = evaluation_metrics
+        self.test_metrics = test_metrics if test_metrics is not None else metrics
 
         self._train_dataloader = None
         self._validation_dataloader = None
@@ -149,7 +151,6 @@ class TorchRunner:
                 inputs, targets, sample_weight = batch
 
             outputs, losses = self.test_step(inputs, targets)
-
             self.update_metrics(
                 targets=targets,
                 outputs=outputs,
