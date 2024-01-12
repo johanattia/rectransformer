@@ -18,6 +18,7 @@ from recommendation_transformer.torch import callbacks
 # device:
 # https://stackoverflow.com/questions/75188254/pytorch-proper-way-to-compute-loss-on-gpu
 # https://docs.databricks.com/en/machine-learning/model-inference/resnet-model-inference-pytorch.html
+# Review loss weighting in update_metrics, test_step...
 
 
 def _copy_loss(loss_obj, reduction: str):
@@ -105,7 +106,6 @@ class TorchRunner:
     def reset_metrics(self, include_loss: bool = True):
         for metric in self.metrics():
             metric.reset_state()
-
         if include_loss:
             self._loss_tracker.reset_state()
 
@@ -113,15 +113,17 @@ class TorchRunner:
         self,
         targets: torch.Tensor,
         outputs: torch.Tensor,
-        loss: torch.Tensor = None,
         sample_weight: torch.Tensor = None,
+        losses: torch.Tensor = None,
+        loss_weighting: bool = True,
     ):
         for metric in self.metrics:
             metric.update_state(
                 y_true=targets, y_pred=outputs, sample_weight=sample_weight
             )
-        if loss is not None:
-            self._loss_tracker.update_state(values=loss, sample_weight=sample_weight)
+        if losses is not None:
+            loss_weight = sample_weight if loss_weighting else None
+            self._loss_tracker.update_state(values=losses, sample_weight=loss_weight)
 
     def compute_metrics(self, include_loss: bool = True) -> List[Tuple[str, float]]:
         results = [("loss", self._loss_tracker.result())] if include_loss else []
@@ -162,7 +164,7 @@ class TorchRunner:
             )
         # Weighted loss and metrics computation
         self.update_metrics(
-            targets=targets, outputs=outputs, loss=losses, sample_weight=sample_weight
+            targets=targets, outputs=outputs, losses=losses, sample_weight=sample_weight
         )
         results = self.compute_metrics(include_loss=True)
 
@@ -193,19 +195,20 @@ class TorchRunner:
 
         # Weighted loss and metrics computation
         self.update_metrics(
-            targets=targets, outputs=outputs, loss=loss, sample_weight=sample_weight
+            targets=targets, outputs=outputs, losses=loss, sample_weight=sample_weight
         )
         results = self.compute_metrics(include_loss=True)
 
         return results
 
-    def evaluate(self, test_dataloader: torch.utils.data.DataLoader):
+    def evaluate(self, test_dataloader: torch.utils.data.DataLoader, verbose: int = 1):
         self.reset_metrics(include_loss=True)
 
         iterations = len(test_dataloader)
         progbar = keras.utils.Progbar(
             targets=iterations,
             width=30,
+            verbose=verbose,
             stateful_metrics=["loss"] + [metric.name for metric in self.metrics],
         )
 
@@ -216,7 +219,8 @@ class TorchRunner:
                 (inputs, targets), sample_weight = batch, None
             else:
                 inputs, targets, sample_weight = batch
-            # Inference then metrics computation are performed
+
+            # Inference and metrics computation are performed
             results, batch_output = self.test_step(inputs, targets, sample_weight)
             # Structure final outputs composed of batches of outputs
             outputs = _append(batch_output, outputs)
@@ -227,13 +231,15 @@ class TorchRunner:
 
         return {"results": results, "outputs": outputs}
 
-    def predict(self, dataloader: torch.utils.data.DataLoader):
+    def predict(self, dataloader: torch.utils.data.DataLoader, verbose: int = 1):
         iterations = len(dataloader)
-        progbar = keras.utils.Progbar(targets=iterations, width=30)
+        progbar = keras.utils.Progbar(targets=iterations, width=30, verbose=verbose)
 
         outputs = None
         for step, batch_input in enumerate(dataloader):
+            # Inference
             batch_output = self.predict_step(batch_input)
+            # Structure final outputs composed of batches of outputs
             outputs = _append(batch_output, outputs)
             progbar.update(step + 1, finalize=False)
 
@@ -248,12 +254,13 @@ class TorchRunner:
         train_dataloader: torch.utils.data.DataLoader,
         validation_dataloader: torch.utils.data.DataLoader = None,
         callbacks: Iterable[callbacks.Callback] = None,
+        verbose: int = 1,
     ):
         history = {}
         ## TRAINING PROCEDURE
         # FOR EACH EPOCH:
         ### FOR EACH TRAIN ITERATION: TRAIN_STEP+SAVE TRAIN METRICS
-        ### FOR EACH VAL ITERATION: TEST_STEP+SAVE VAL METRICS
+        ### FOR EACH VAL ITERATION: TEST_STEP+SAVE VAL METRICS WITH VERBOSE=2
         ### HISTORY UPDATE TRAIN&VAL LOSSES AND METRICS
         self.run_counter.train += 1
 
