@@ -1,9 +1,10 @@
 """Lightweight Torch Module Runner for Training, Evaluation and Inference"""
 
-from typing import Iterable
+from typing import Iterable, List, Tuple
 
 import torch
 from torch import nn
+from torch import optim
 
 import keras
 from keras import backend
@@ -11,7 +12,14 @@ from keras import backend
 from recommendation_transformer.torch import callbacks
 
 
-# TODO: train + predict methods
+# TODO: train + _append
+# device:
+# https://stackoverflow.com/questions/75188254/pytorch-proper-way-to-compute-loss-on-gpu
+# https://docs.databricks.com/en/machine-learning/model-inference/resnet-model-inference-pytorch.html
+
+
+def _append(batch_output, output):
+    return output
 
 
 class TorchRunner:
@@ -21,11 +29,11 @@ class TorchRunner:
         self,
         model: nn.Module,
         jit_compile: bool,
+        device: torch.device,
         loss_fn: nn.Module,
-        optimizer: torch.optim.Optimizer,
-        loss_tracker: keras.metrics.Metric,
+        optimizer: optim.Optimizer,
         metrics: Iterable[keras.metrics.Metric],
-        test_metrics: Iterable[keras.metrics.Metric] = None,
+        loss_tracker: keras.metrics.Metric = keras.metrics.Mean(),
     ):
         _backend = backend.backend()
         if _backend != "torch":
@@ -35,17 +43,20 @@ class TorchRunner:
             self.model = torch.compile(model)
         else:
             self.model = model
-        self.jit_compile = jit_compile
+        self._jit_compile = jit_compile
+        self._device = device
+
         self.loss_fn = loss_fn
         self.optimizer = optimizer
 
         if loss_fn.reduction == "none":
-            sample_loss = loss_fn
+            sample_loss_fn = loss_fn
         else:
-            sample_loss = self.loss_fn.__class__()
-            sample_loss.__dict__.update(self.loss_fn.__dict__)
-            sample_loss.reduction = "none"
-        self.sample_loss = sample_loss
+            sample_loss_fn = self.loss_fn.__class__()
+            sample_loss_fn.__dict__.update(self.loss_fn.__dict__)
+            sample_loss_fn.reduction = "none"
+
+        self._sample_loss_fn = sample_loss_fn
 
         if isinstance(loss_tracker, (keras.metrics.Mean, keras.metrics.Sum)):
             self._loss_tracker = loss_tracker
@@ -54,7 +65,6 @@ class TorchRunner:
                 "`loss_tracker` should be keras.metrics.Mean or keras.metrics.Sum."
             )
         self.metrics = metrics
-        self.test_metrics = test_metrics if test_metrics is not None else metrics
 
         self._train_dataloader = None
         self._validation_dataloader = None
@@ -73,17 +83,17 @@ class TorchRunner:
         self,
         targets: torch.Tensor,
         outputs: torch.Tensor,
-        losses: torch.Tensor = None,
+        loss: torch.Tensor = None,
         sample_weight: torch.Tensor = None,
     ):
         for metric in self.metrics:
             metric.update_state(
                 y_true=targets, y_pred=outputs, sample_weight=sample_weight
             )
-        if losses is not None:
-            self._loss_tracker.update_state(values=losses, sample_weight=sample_weight)
+        if loss is not None:
+            self._loss_tracker.update_state(values=loss, sample_weight=sample_weight)
 
-    def compute_metrics(self, include_loss: bool = True):
+    def compute_metrics(self, include_loss: bool = True) -> List[Tuple[str, float]]:
         results = [("loss", self._loss_tracker.result())] if include_loss else []
         results += [(f"{metric.name}", metric.result()) for metric in self.metrics]
         return results
@@ -93,11 +103,15 @@ class TorchRunner:
         y_true: torch.Tensor,
         y_pred: torch.Tensor,
         sample_weight: torch.Tensor = None,
+        auto_reduction: bool = True,
     ) -> torch.Tensor:
+        if not auto_reduction:
+            return self.sample_loss_fn(y_pred, y_true)
+
         if sample_weight is None:
             return self.loss_fn(y_pred, y_true)
 
-        weighted_losses = self.sample_loss(y_pred, y_true) * sample_weight
+        weighted_losses = self.sample_loss_fn(y_pred, y_true) * sample_weight
 
         if self.loss_fn.reduction == "none":
             return weighted_losses
@@ -106,27 +120,55 @@ class TorchRunner:
             return reduce_fn(weighted_losses)
 
     def test_step(
-        self,
-        inputs: torch.Tensor,
-        targets: torch.Tensor,
-    ) -> torch.Tensor:
+        self, inputs: torch.Tensor, targets: torch.Tensor, sample_weight: torch.Tensor
+    ) -> Tuple[torch.Tensor]:
         self.model.eval()
 
+        # Inference and loss
         with torch.no_grad():
             outputs = self.model(inputs)
-            losses = self.sample_loss(y_true=targets, y_pred=outputs)
+            losses = self.compute_loss(
+                y_true=targets, y_pred=outputs, auto_reduction=False
+            )
 
-        return outputs, losses
+        # Metrics
+        self.update_metrics(
+            targets=targets, outputs=outputs, loss=losses, sample_weight=sample_weight
+        )
+        results = self.compute_metrics(include_loss=True)
 
-    def predict_step(self):
+        return results, outputs
+
+    def predict_step(self, inputs: torch.Tensor):
         self.model.eval()
-        pass
+
+        # Inference
+        with torch.no_grad():
+            outputs = self.model(inputs)
+
+        return outputs
 
     def train_step(
-        self,
+        self, inputs: torch.Tensor, targets: torch.Tensor, sample_weight: torch.Tensor
     ):
         self.model.train()
-        pass
+        self.optimizer.zero_grad()
+
+        # Inference and loss
+        outputs = self.model(inputs)
+        loss = self.compute_loss(outputs, targets, sample_weight)
+
+        # Backpropagation
+        loss.backward()
+        self.optimizer.step()
+
+        # Metrics
+        self.update_metrics(
+            targets=targets, outputs=outputs, loss=loss, sample_weight=sample_weight
+        )
+        results = self.compute_metrics(include_loss=True)
+
+        return results
 
     def evaluate(self, test_dataloader: torch.utils.data.DataLoader):
         self.reset_metrics(include_loss=True)
@@ -138,27 +180,34 @@ class TorchRunner:
             stateful_metrics=["loss"] + [metric.name for metric in self.metrics],
         )
 
+        outputs = None
         for step, batch in enumerate(test_dataloader):
             if len(batch) == 2:
                 (inputs, targets), sample_weight = batch, None
             else:
                 inputs, targets, sample_weight = batch
 
-            outputs, losses = self.test_step(inputs, targets)
-            self.update_metrics(
-                targets=targets,
-                outputs=outputs,
-                sample_weight=sample_weight,
-                losses=losses,
-            )
-            results = self.compute_metrics(include_loss=True)
+            results, batch_output = self.test_step(inputs, targets, sample_weight)
+            outputs = _append(batch_output, outputs)
             progbar.update(step + 1, values=results, finalize=False)
 
         progbar.update(step + 1, values=results, finalize=True)
-        return results
 
-    def predict(self):
-        return
+        return {"results": results, "outputs": outputs}
+
+    def predict(self, dataloader: torch.utils.data.DataLoader):
+        iterations = len(dataloader)
+        progbar = keras.utils.Progbar(targets=iterations, width=30)
+
+        outputs = None
+        for step, batch_input in enumerate(dataloader):
+            batch_output = self.predict_step(batch_input)
+            outputs = _append(batch_output, outputs)
+            progbar.update(step + 1, finalize=False)
+
+        progbar.update(step + 1, finalize=True)
+
+        return outputs
 
     def train(
         self,
