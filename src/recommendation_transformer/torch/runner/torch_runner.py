@@ -160,8 +160,7 @@ class TorchRunner:
             losses = self.compute_loss(
                 y_true=targets, y_pred=outputs, auto_reduction=False
             )
-
-        # Metrics
+        # Weighted loss and metrics computation
         self.update_metrics(
             targets=targets, outputs=outputs, loss=losses, sample_weight=sample_weight
         )
@@ -192,7 +191,7 @@ class TorchRunner:
         loss.backward()
         self.optimizer.step()
 
-        # Metrics
+        # Weighted loss and metrics computation
         self.update_metrics(
             targets=targets, outputs=outputs, loss=loss, sample_weight=sample_weight
         )
@@ -212,12 +211,14 @@ class TorchRunner:
 
         outputs = None
         for step, batch in enumerate(test_dataloader):
+            # Load data
             if len(batch) == 2:
                 (inputs, targets), sample_weight = batch, None
             else:
                 inputs, targets, sample_weight = batch
-
+            # Inference then metrics computation are performed
             results, batch_output = self.test_step(inputs, targets, sample_weight)
+            # Structure final outputs composed of batches of outputs
             outputs = _append(batch_output, outputs)
             progbar.update(step + 1, values=results, finalize=False)
 
