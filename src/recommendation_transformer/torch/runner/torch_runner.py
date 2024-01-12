@@ -1,5 +1,6 @@
 """Lightweight Torch Module Runner for Training, Evaluation and Inference"""
 
+from dataclasses import dataclass
 from typing import Iterable, List, Tuple
 
 import torch
@@ -8,6 +9,7 @@ from torch import optim
 
 import keras
 from keras import backend
+from keras import metrics as metrics_module
 
 from recommendation_transformer.torch import callbacks
 
@@ -29,6 +31,13 @@ def _append(batch_output, output):
     return output
 
 
+@dataclass
+class RunCounter:
+    train: int = 0
+    evaluate: int = 0
+    predict: int = 0
+
+
 class TorchRunner:
     """Lightweight Torch Module Runner for Training, Evaluation and Inference"""
 
@@ -39,8 +48,7 @@ class TorchRunner:
         device: torch.device,
         loss_fn: nn.Module,
         optimizer: optim.Optimizer,
-        metrics: Iterable[keras.metrics.Metric],
-        loss_tracker: keras.metrics.Metric = keras.metrics.Mean(),
+        metrics: Iterable[metrics_module.Metric],
     ):
         _backend = backend.backend()
         if _backend != "torch":
@@ -50,31 +58,49 @@ class TorchRunner:
             self.model = torch.compile(model)
         else:
             self.model = model
+
         self._jit_compile = jit_compile
         self._device = device
-        self.loss_fn = loss_fn
-        self.optimizer = optimizer
-        self.metrics = metrics
-
-        if isinstance(loss_tracker, (keras.metrics.Mean, keras.metrics.Sum)):
-            self._loss_tracker = loss_tracker
-        else:
-            raise ValueError(
-                "`loss_tracker` should be keras.metrics.Mean or keras.metrics.Sum."
-            )
+        self._loss_fn = loss_fn
+        self._optimizer = optimizer
+        self._metrics = metrics
+        self._loss_tracker = metrics_module.Mean(name="loss")
 
         self.sample_loss_fn = (
             loss_fn
             if loss_fn.reduction == "none"
             else _copy_loss(loss_fn, reduction="none")
         )
-        self.counter = self.reset_counter()
+        self.run_counter = RunCounter()
 
-    def reset_counter(self, mode: str = None):
-        if mode in ["train", "evaluate", "predict"]:
-            self.counter.update({mode: 0})
-        else:
-            return {"train": 0, "evaluate": 0, "predict": 0}
+    @property
+    def device(self):
+        return self._device
+
+    @property.setter
+    def device(self, value: torch.device):
+        self._device = value
+
+    @property
+    def loss_fn(self):
+        return self._loss_fn
+
+    @property.setter
+    def loss_fn(self, value: nn.Module):
+        self._loss_fn = value
+
+    @property
+    def optimizer(self):
+        return self._optimizer
+
+    @property.setter
+    def optimizer(self, value: optim.Optimizer):
+        if not isinstance(value, optim.Optimizer):
+            raise TypeError
+        self._optimizer = value
+
+    def reset_counter(self):
+        self.run_counter = RunCounter()
 
     def reset_metrics(self, include_loss: bool = True):
         for metric in self.metrics():
@@ -196,7 +222,7 @@ class TorchRunner:
             progbar.update(step + 1, values=results, finalize=False)
 
         progbar.update(step + 1, values=results, finalize=True)
-        self.counter["evaluate"] += 1
+        self.run_counter.evaluate += 1
 
         return {"results": results, "outputs": outputs}
 
@@ -211,7 +237,7 @@ class TorchRunner:
             progbar.update(step + 1, finalize=False)
 
         progbar.update(step + 1, finalize=True)
-        self.counter["predict"] += 1
+        self.run_counter.predict += 1
 
         return outputs
 
@@ -228,6 +254,6 @@ class TorchRunner:
         ### FOR EACH TRAIN ITERATION: TRAIN_STEP+SAVE TRAIN METRICS
         ### FOR EACH VAL ITERATION: TEST_STEP+SAVE VAL METRICS
         ### HISTORY UPDATE TRAIN&VAL LOSSES AND METRICS
-        self.counter["train"] += 1
+        self.run_counter.train += 1
 
         return history
