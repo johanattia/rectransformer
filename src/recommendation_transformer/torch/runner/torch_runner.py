@@ -18,6 +18,13 @@ from recommendation_transformer.torch import callbacks
 # https://docs.databricks.com/en/machine-learning/model-inference/resnet-model-inference-pytorch.html
 
 
+def _copy_loss(loss_obj, reduction: str):
+    obj_copy = loss_obj.__class__()
+    obj_copy.__dict__.update(loss_obj.__dict__)
+    obj_copy.reduction = reduction
+    return obj_copy
+
+
 def _append(batch_output, output):
     return output
 
@@ -47,15 +54,7 @@ class TorchRunner:
         self._device = device
         self.loss_fn = loss_fn
         self.optimizer = optimizer
-
-        if loss_fn.reduction == "none":
-            sample_loss_fn = loss_fn
-        else:
-            sample_loss_fn = self.loss_fn.__class__()
-            sample_loss_fn.__dict__.update(self.loss_fn.__dict__)
-            sample_loss_fn.reduction = "none"
-
-        self._sample_loss_fn = sample_loss_fn
+        self.metrics = metrics
 
         if isinstance(loss_tracker, (keras.metrics.Mean, keras.metrics.Sum)):
             self._loss_tracker = loss_tracker
@@ -63,12 +62,19 @@ class TorchRunner:
             raise ValueError(
                 "`loss_tracker` should be keras.metrics.Mean or keras.metrics.Sum."
             )
-        self.metrics = metrics
 
-        self._train_dataloader = None
-        self._validation_dataloader = None
-        self._callbacks = None
-        self._train_counter = 0
+        self.sample_loss_fn = (
+            loss_fn
+            if loss_fn.reduction == "none"
+            else _copy_loss(loss_fn, reduction="none")
+        )
+        self.counter = self.reset_counter()
+
+    def reset_counter(self, mode: str = None):
+        if mode in ["train", "evaluate", "predict"]:
+            self.counter.update({mode: 0})
+        else:
+            return {"train": 0, "evaluate": 0, "predict": 0}
 
     def reset_metrics(self, include_loss: bool = True):
         for metric in self.metrics():
@@ -190,6 +196,7 @@ class TorchRunner:
             progbar.update(step + 1, values=results, finalize=False)
 
         progbar.update(step + 1, values=results, finalize=True)
+        self.counter["evaluate"] += 1
 
         return {"results": results, "outputs": outputs}
 
@@ -204,6 +211,7 @@ class TorchRunner:
             progbar.update(step + 1, finalize=False)
 
         progbar.update(step + 1, finalize=True)
+        self.counter["predict"] += 1
 
         return outputs
 
@@ -220,5 +228,6 @@ class TorchRunner:
         ### FOR EACH TRAIN ITERATION: TRAIN_STEP+SAVE TRAIN METRICS
         ### FOR EACH VAL ITERATION: TEST_STEP+SAVE VAL METRICS
         ### HISTORY UPDATE TRAIN&VAL LOSSES AND METRICS
-        self._train_counter += 1
+        self.counter["train"] += 1
+
         return history
