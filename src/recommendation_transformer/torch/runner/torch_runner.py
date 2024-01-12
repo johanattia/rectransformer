@@ -45,7 +45,6 @@ class TorchRunner:
             self.model = model
         self._jit_compile = jit_compile
         self._device = device
-
         self.loss_fn = loss_fn
         self.optimizer = optimizer
 
@@ -69,7 +68,6 @@ class TorchRunner:
         self._train_dataloader = None
         self._validation_dataloader = None
         self._callbacks = None
-
         self._train_counter = 0
 
     def reset_metrics(self, include_loss: bool = True):
