@@ -161,6 +161,7 @@ class TorchRunner:
             loss = self.compute_loss(
                 y_true=targets, y_pred=outputs, sample_weight=sample_weight
             )
+
         # Loss and metrics computation
         self._loss_tracker.update_state(values=loss)
         self.update_metrics(
@@ -189,9 +190,11 @@ class TorchRunner:
         loss = self.compute_loss(
             y_true=targets, y_pred=outputs, sample_weight=sample_weight
         )
+
         # Backpropagation
         loss.backward()
         self.optimizer.step()
+
         # Loss and metrics computation
         self._loss_tracker.update_state(values=loss)
         self.update_metrics(
