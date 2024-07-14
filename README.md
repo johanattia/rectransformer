@@ -1,5 +1,5 @@
-# recommendation-transformer
-Multi-horizon Transformer Encoder-Decoder for Recommendation.
+# rectransformer
+Multi-horizon Transformer for Recommendation.
 
 
 ## License
