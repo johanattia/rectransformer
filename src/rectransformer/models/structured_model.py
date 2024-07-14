@@ -7,7 +7,7 @@ from keras import ops
 from keras import regularizers
 from keras.backend import KerasTensor
 
-from recommendation_transformer import feature
+from rectransformer import feature
 
 
 class StructuredModel(keras.Model):

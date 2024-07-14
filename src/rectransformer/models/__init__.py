@@ -1,0 +1,3 @@
+import rectransformer
+from rectransformer.models.rectransformer import RecTransformer
+from rectransformer.models.structured_model import StructuredModel

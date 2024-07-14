@@ -4,14 +4,14 @@ import keras
 from keras import layers
 from keras.backend import KerasTensor
 
-from recommendation_transformer import feature
-from recommendation_transformer.keras.layers import (
+from rectransformer import feature
+from rectransformer.layers import (
     AttentionPooling,
     Predictor,
     TransformerDecoderBlock,
     TransformerEncoderBlock,
 )
-from recommendation_transformer.keras.models import StructuredModel
+from rectransformer.models import StructuredModel
 
 
 class FeatureConsistencyError(Exception):
